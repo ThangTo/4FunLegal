@@ -3,6 +3,9 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import { cn } from '../lib/cn';
+import { StatusBadge } from './StatusBadge';
+
 // Define the validation schema using Zod
 const registrationSchema = z.object({
   companyName: z.string().min(5, 'Company name must be at least 5 characters'),
@@ -55,75 +58,122 @@ export const RegistrationForm: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-10">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">Business Registration Fact-Check</h2>
+    <div className="card-base mx-auto mt-10 max-w-2xl p-6 md:p-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-brand-deep md:text-3xl">
+            Kiểm tra nhanh hồ sơ kinh doanh
+          </h2>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted md:text-base">
+            Biểu mẫu mẫu dùng semantic theme mới để kiểm tra các variant input,
+            button và trạng thái phản hồi.
+          </p>
+        </div>
+        <StatusBadge tone="info">Demo UI form</StatusBadge>
+      </div>
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Company Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">Company Name</label>
+          <label className="mb-2 block text-sm font-semibold text-text-base">
+            Tên doanh nghiệp / hộ kinh doanh
+          </label>
           <input
             {...register('companyName')}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 ${errors.companyName ? 'border-red-500' : ''}`}
-            placeholder="e.g. Acme Corporation"
+            className={cn(
+              'input-base',
+              errors.companyName &&
+                'border-state-error focus:border-state-error focus:ring-state-error/15',
+            )}
+            placeholder="Ví dụ: Hộ kinh doanh Minh Phát"
           />
-          {errors.companyName && <p className="mt-1 text-sm text-red-500">{errors.companyName.message}</p>}
+          {errors.companyName && (
+            <p className="mt-2 text-sm text-state-error">
+              {errors.companyName.message}
+            </p>
+          )}
         </div>
 
         {/* Business Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">Business Type</label>
+          <label className="mb-2 block text-sm font-semibold text-text-base">
+            Loại hình đăng ký
+          </label>
           <select
             {...register('businessType')}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 ${errors.businessType ? 'border-red-500' : ''}`}
+            className={cn(
+              'select-base',
+              errors.businessType &&
+                'border-state-error focus:border-state-error focus:ring-state-error/15',
+            )}
           >
             <option value="LLC">Limited Liability Company (LLC)</option>
             <option value="JSC">Joint Stock Company (JSC)</option>
             <option value="Partnership">Partnership</option>
             <option value="Sole Proprietorship">Sole Proprietorship</option>
           </select>
-          {errors.businessType && <p className="mt-1 text-sm text-red-500">{errors.businessType.message}</p>}
+          {errors.businessType && (
+            <p className="mt-2 text-sm text-state-error">
+              {errors.businessType.message}
+            </p>
+          )}
         </div>
 
         {/* Capital */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">Capital (VND)</label>
+          <label className="mb-2 block text-sm font-semibold text-text-base">
+            Vốn đăng ký (VND)
+          </label>
           <input
             type="number"
             {...register('capital', { valueAsNumber: true })}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 ${errors.capital ? 'border-red-500' : ''}`}
+            className={cn(
+              'input-base',
+              errors.capital &&
+                'border-state-error focus:border-state-error focus:ring-state-error/15',
+            )}
             placeholder="1000000"
           />
-          {errors.capital && <p className="mt-1 text-sm text-red-500">{errors.capital.message}</p>}
+          {errors.capital && (
+            <p className="mt-2 text-sm text-state-error">
+              {errors.capital.message}
+            </p>
+          )}
         </div>
 
         {/* Submit Button */}
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
+          className="btn-primary w-full justify-center py-3 text-base"
         >
-          {isLoading ? 'Verifying...' : 'Verify Registration'}
+          {isLoading ? 'Đang kiểm tra...' : 'Kiểm tra hồ sơ'}
         </button>
       </form>
 
       {/* Error Message */}
       {error && (
-        <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mt-4 rounded-2xl border border-state-error/30 bg-state-error/10 p-4 text-state-error">
           {error}
         </div>
       )}
 
       {/* Success / AI Result */}
       {submissionResult && (
-        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded">
-          <h3 className="text-lg font-medium text-green-800 mb-2">AI Verification Result</h3>
-          <p><strong>Status:</strong> {submissionResult.prediction}</p>
-          <p><strong>Confidence:</strong> {submissionResult.confidenceScore * 100}%</p>
+        <div className="mt-6 rounded-panel border border-state-success/25 bg-state-success/10 p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-lg font-bold text-state-success">
+              Kết quả đánh giá AI
+            </h3>
+            <StatusBadge tone="success">{submissionResult.prediction}</StatusBadge>
+          </div>
+          <p className="text-text-base">
+            <strong>Confidence:</strong> {submissionResult.confidenceScore * 100}%
+          </p>
           
           <div className="mt-2">
             <strong>Feedback:</strong>
-            <ul className="list-disc pl-5 text-sm text-green-700 mt-1">
+            <ul className="mt-2 list-disc pl-5 text-sm text-state-success">
               {submissionResult.feedback.map((item: string, idx: number) => (
                 <li key={idx}>{item}</li>
               ))}
