@@ -1,45 +1,45 @@
-import { SiteLayout } from "../components/SiteLayout";
-import { StatusBadge } from "../components/StatusBadge";
+import { useNavigate } from 'react-router-dom';
+
+import { SiteLayout } from '../components/SiteLayout';
+import { StatusBadge } from '../components/StatusBadge';
 
 const stats = [
-  { value: "2.5M+", label: "Hộ kinh doanh đã dùng" },
-  { value: "15 Phút", label: "Thời gian hoàn tất trung bình" },
-  { value: "85%", label: "Giảm tỷ lệ sai sót hồ sơ" },
-  { value: "24/7", label: "Hỗ trợ kiểm tra trực tuyến" },
+  { value: '2.5M+', label: 'Hộ kinh doanh đã dùng' },
+  { value: '15 Phút', label: 'Thời gian hoàn tất trung bình' },
+  { value: '85%', label: 'Giảm tỷ lệ sai sót hồ sơ' },
+  { value: '24/7', label: 'Hỗ trợ kiểm tra trực tuyến' },
 ];
 
 const steps = [
   {
-    step: "1",
-    title: "Tải lên hồ sơ",
+    step: '1',
+    title: 'Tải lên hồ sơ',
     description:
-      "Chụp ảnh hoặc tải lên tệp tin định dạng PDF/JPG của các giấy tờ liên quan.",
+      'Chụp ảnh hoặc tải lên tệp tin định dạng PDF/JPG của các giấy tờ liên quan.',
   },
   {
-    step: "2",
-    title: "Hệ thống phân tích",
+    step: '2',
+    title: 'Hệ thống phân tích',
     description:
-      "Trí tuệ nhân tạo sẽ rà soát các thông tin bắt buộc và tìm ra các lỗi sai sót.",
+      'Trí tuệ nhân tạo sẽ rà soát các thông tin bắt buộc và tìm ra các lỗi sai sót.',
   },
   {
-    step: "3",
-    title: "Nhận kết quả",
+    step: '3',
+    title: 'Nhận kết quả',
     description:
-      "Tải xuống báo cáo chi tiết và hướng dẫn sửa đổi để hoàn thiện hồ sơ.",
+      'Tải xuống báo cáo chi tiết và hướng dẫn sửa đổi để hoàn thiện hồ sơ.',
   },
 ];
 
 const ctaHighlights = [
-  "Không cần đăng ký",
-  "Báo cáo tức thì",
-  "Pháp lý chuẩn xác",
+  'Không cần đăng ký',
+  'Báo cáo tức thì',
+  'Pháp lý chuẩn xác',
 ];
 
-type LandingPageProps = {
-  onNavigate: (path: string) => void;
-};
+export const LandingPage = () => {
+  const navigate = useNavigate();
 
-export const LandingPage = ({ onNavigate }: LandingPageProps) => {
   return (
     <SiteLayout>
       <main id="trang-chu">
@@ -49,28 +49,25 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
               <div className="space-y-8">
                 <div className="flex flex-wrap gap-3">
                   <StatusBadge tone="info">Hỗ trợ hồ sơ trực tuyến</StatusBadge>
-                  <StatusBadge tone="success">
-                    Miễn phí kiểm tra sơ bộ
-                  </StatusBadge>
+                  <StatusBadge tone="success">Miễn phí kiểm tra sơ bộ</StatusBadge>
                 </div>
 
                 <div className="space-y-6">
                   <h1 className="max-w-3xl text-5xl font-black leading-[1.04] tracking-tight text-brand-deep md:text-7xl">
-                    Hỗ trợ Kiểm tra{" "}
-                    <span className="text-brand-secondary">Hồ sơ Đăng ký</span>{" "}
+                    Hỗ trợ Kiểm tra <span className="text-brand-secondary">Hồ sơ Đăng ký</span>{' '}
                     Kinh doanh
                   </h1>
                   <p className="max-w-2xl text-lg leading-relaxed text-text-muted md:text-2xl">
-                    Hệ thống thông minh giúp Hộ kinh doanh cá thể rà soát lỗi hồ
-                    sơ pháp lý, đảm bảo tính chính xác và tăng tỷ lệ xét duyệt
-                    thành công ngay từ lần đầu.
+                    Hệ thống thông minh giúp Hộ kinh doanh cá thể rà soát lỗi hồ sơ
+                    pháp lý, đảm bảo tính chính xác và tăng tỷ lệ xét duyệt thành
+                    công ngay từ lần đầu.
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-4 pt-2">
                   <button
                     type="button"
-                    onClick={() => onNavigate("/register")}
+                    onClick={() => navigate('/register')}
                     className="btn-primary px-8 py-4 text-base md:px-10 md:py-5 md:text-lg"
                   >
                     Bắt đầu kiểm tra hồ sơ
@@ -80,7 +77,7 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => onNavigate("/guide")}
+                    onClick={() => navigate('/guide')}
                     className="btn-outline px-8 py-4 text-base md:px-10 md:py-5 md:text-lg"
                   >
                     Xem video hướng dẫn
@@ -104,9 +101,7 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
                       </span>
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-text-base">
-                        Độ chính xác AI
-                      </div>
+                      <div className="text-sm font-bold text-text-base">Độ chính xác AI</div>
                       <div className="text-2xl font-black text-brand-secondary">
                         99.8%
                       </div>
@@ -138,8 +133,7 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
             <div className="mb-14">
               <h2 className="section-title">Tại sao nên chọn chúng tôi?</h2>
               <p className="section-subtitle">
-                Quy trình chuyên nghiệp được thiết kế riêng cho người dân Việt
-                Nam.
+                Quy trình chuyên nghiệp được thiết kế riêng cho người dân Việt Nam.
               </p>
             </div>
 
@@ -147,14 +141,10 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
               <article className="card-feature group flex flex-col gap-10 p-8 transition hover:-translate-y-1 hover:shadow-panel md:col-span-8 md:flex-row md:items-center md:p-12">
                 <div className="flex-1 space-y-6">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary text-text-inverse">
-                    <span className="material-symbols-outlined text-[30px]">
-                      bolt
-                    </span>
+                    <span className="material-symbols-outlined text-[30px]">bolt</span>
                   </div>
                   <div className="space-y-4">
-                    <h3 className="text-3xl font-bold text-brand-deep">
-                      Tốc độ vượt trội
-                    </h3>
+                    <h3 className="text-3xl font-bold text-brand-deep">Tốc độ vượt trội</h3>
                     <p className="text-lg leading-relaxed text-text-muted">
                       Không còn phải chờ đợi hàng giờ tại cơ quan hành chính. Hệ
                       thống tự động phân tích hồ sơ của bạn trong tích tắc.
@@ -180,8 +170,8 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
                   <div className="space-y-4">
                     <h3 className="text-3xl font-bold">Chính xác tuyệt đối</h3>
                     <p className="leading-relaxed text-text-inverse/80">
-                      Cập nhật liên tục theo các nghị định và quy định pháp luật
-                      mới nhất của Chính phủ.
+                      Cập nhật liên tục theo các nghị định và quy định pháp luật mới
+                      nhất của Chính phủ.
                     </p>
                   </div>
                 </div>
@@ -199,8 +189,8 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
                       Dễ dàng theo dõi
                     </h3>
                     <p className="leading-relaxed text-brand-secondary/85">
-                      Giao diện trực quan, cỡ chữ lớn, hướng dẫn từng bước rõ
-                      ràng dành cho mọi lứa tuổi.
+                      Giao diện trực quan, cỡ chữ lớn, hướng dẫn từng bước rõ ràng
+                      dành cho mọi lứa tuổi.
                     </p>
                   </div>
                 </div>
@@ -209,17 +199,13 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
               <article className="card-feature group flex flex-col gap-10 p-8 transition hover:-translate-y-1 hover:shadow-panel md:col-span-8 md:flex-row-reverse md:items-center md:p-12">
                 <div className="flex-1 space-y-6">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-state-warning/15 text-state-warning">
-                    <span className="material-symbols-outlined text-[30px]">
-                      shield
-                    </span>
+                    <span className="material-symbols-outlined text-[30px]">shield</span>
                   </div>
                   <div className="space-y-4">
-                    <h3 className="text-3xl font-bold text-brand-deep">
-                      Bảo mật thông tin
-                    </h3>
+                    <h3 className="text-3xl font-bold text-brand-deep">Bảo mật thông tin</h3>
                     <p className="text-lg leading-relaxed text-text-muted">
-                      Mọi tài liệu và thông tin cá nhân của bạn được mã hóa và
-                      bảo vệ theo tiêu chuẩn an ninh quốc gia.
+                      Mọi tài liệu và thông tin cá nhân của bạn được mã hóa và bảo
+                      vệ theo tiêu chuẩn an ninh quốc gia.
                     </p>
                   </div>
                 </div>
@@ -250,22 +236,17 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
                 const active = index === 2;
 
                 return (
-                  <article
-                    key={item.step}
-                    className="relative z-10 text-center text-text-base"
-                  >
+                  <article key={item.step} className="relative z-10 text-center text-text-base">
                     <div
                       className={
                         active
-                          ? "mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-surface-card bg-brand-deep text-2xl font-black text-text-inverse shadow-panel"
-                          : "mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-surface-card bg-surface-card text-2xl font-black text-brand-primary shadow-card"
+                          ? 'mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-surface-card bg-brand-deep text-2xl font-black text-text-inverse shadow-panel'
+                          : 'mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-surface-card bg-surface-card text-2xl font-black text-brand-primary shadow-card'
                       }
                     >
                       {item.step}
                     </div>
-                    <h3 className="mt-6 text-2xl font-bold text-brand-deep">
-                      {item.title}
-                    </h3>
+                    <h3 className="mt-6 text-2xl font-bold text-brand-deep">{item.title}</h3>
                     <p className="mx-auto mt-4 max-w-sm leading-relaxed text-text-muted">
                       {item.description}
                     </p>
@@ -277,7 +258,7 @@ export const LandingPage = ({ onNavigate }: LandingPageProps) => {
             <div className="mt-16 flex justify-center">
               <button
                 type="button"
-                onClick={() => onNavigate("/register")}
+                onClick={() => navigate('/register')}
                 className="btn-primary rounded-pill px-10 py-5 text-lg shadow-cta"
               >
                 Kiểm tra hồ sơ của tôi ngay

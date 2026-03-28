@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../features/auth/AuthContext';
 import { VoiceAssistantFab } from './VoiceAssistantFab';
 
 type SiteLayoutProps = {
@@ -19,8 +20,13 @@ const NAV_ITEMS: Array<{ key: NavKey; label: string; to: string }> = [
   { key: 'support', label: 'Hỗ trợ', to: '/assistant' },
 ];
 
+const getInitial = (fullName?: string | null) =>
+  fullName?.trim().charAt(0).toUpperCase() || 'U';
+
 export const SiteLayout = ({ children, showAssistant = true }: SiteLayoutProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isLoading, logout, user } = useAuth();
 
   const isActive = (key: NavKey) => {
     if (key === 'home') {
@@ -28,7 +34,7 @@ export const SiteLayout = ({ children, showAssistant = true }: SiteLayoutProps) 
     }
 
     if (key === 'procedure') {
-      return ['/register', '/documents', '/processing', '/results'].includes(
+      return ['/register', '/documents', '/processing', '/results', '/submit'].includes(
         location.pathname,
       );
     }
@@ -72,20 +78,84 @@ export const SiteLayout = ({ children, showAssistant = true }: SiteLayoutProps) 
           </nav>
 
           <div className="flex items-center gap-2 text-brand-deep">
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-transparent transition hover:bg-brand-primary/10"
-              aria-label="Thông báo"
-            >
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-transparent transition hover:bg-brand-primary/10"
-              aria-label="Tài khoản"
-            >
-              <span className="material-symbols-outlined text-[20px]">account_circle</span>
-            </button>
+            {user ? (
+              <>
+                <button
+                  type="button"
+                  className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-transparent transition hover:bg-brand-primary/10 md:inline-flex"
+                  aria-label="Thông báo"
+                >
+                  <span className="material-symbols-outlined text-[20px]">notifications</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/history')}
+                  className="hidden items-center gap-3 rounded-2xl border border-border-base/70 bg-surface-card px-3 py-2 transition hover:border-brand-primary/20 hover:bg-surface-subtle md:inline-flex"
+                >
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      className="h-9 w-9 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary text-sm font-black text-text-inverse">
+                      {getInitial(user.fullName)}
+                    </span>
+                  )}
+                  <span className="text-left">
+                    <span className="block text-xs uppercase tracking-[0.14em] text-text-muted">
+                      {user.role}
+                    </span>
+                    <span className="block max-w-[12rem] truncate font-bold text-brand-deep">
+                      {user.fullName}
+                    </span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void logout().then(() => {
+                      navigate('/', { replace: true });
+                    })
+                  }
+                  className="btn-outline hidden h-10 px-4 md:inline-flex"
+                >
+                  Đăng xuất
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/history')}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-transparent transition hover:bg-brand-primary/10 md:hidden"
+                  aria-label="Tài khoản"
+                >
+                  <span className="material-symbols-outlined text-[20px]">account_circle</span>
+                </button>
+              </>
+            ) : isLoading ? (
+              <div className="hidden rounded-2xl border border-border-base/70 bg-surface-card px-4 py-2 text-sm text-text-muted md:block">
+                Đang tải phiên...
+              </div>
+            ) : (
+              <>
+                <Link to="/auth/login" className="btn-outline hidden h-10 px-4 md:inline-flex">
+                  Đăng nhập
+                </Link>
+                <Link to="/auth/register" className="btn-primary hidden h-10 px-4 md:inline-flex">
+                  Tạo tài khoản
+                </Link>
+                <Link
+                  to="/auth/login"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-transparent transition hover:bg-brand-primary/10 md:hidden"
+                  aria-label="Đăng nhập"
+                >
+                  <span className="material-symbols-outlined text-[20px]">account_circle</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

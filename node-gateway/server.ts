@@ -1,31 +1,21 @@
-// d:/Project/AI-agent/node-gateway/server.ts
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import connectDB from './config/db';
-import proxyRoutes from './controllers/proxy.controller';
+import 'dotenv/config';
 
-dotenv.config();
+import { app } from './app';
+import connectDB from './src/config/db';
+import { seedDemoData } from './src/seeds/demo.seed';
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const port = Number(process.env.PORT || 3000);
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+const startServer = async () => {
+  await connectDB();
+  await seedDemoData();
 
-// Connect to MongoDB
-connectDB();
+  app.listen(port, () => {
+    console.log(`💓 Node gateway listening on port ${port}`);
+  });
+};
 
-// Routes
-// Note: In a real app we'd define router inside a routes directory,
-// here proxyRoutes is imported directly from proxy.controller.ts for simplicity
-app.use('/api/v1/proxy', proxyRoutes);
-
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'API Gateway is running' });
-});
-
-app.listen(PORT, () => {
-  console.log(`💓 Server is running on port ${PORT}`);
+void startServer().catch((error) => {
+  console.error('Failed to start node gateway', error);
+  process.exit(1);
 });

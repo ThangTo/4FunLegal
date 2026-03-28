@@ -14,6 +14,20 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Test outputs
+coverage/
+test-results/
+playwright-report/
+blob-report/
+htmlcov/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+node-gateway/coverage/
+fastapi-ai/.pytest_cache/
+
+node-gateway/uploads/
+
 # =========================
 # Python (FastAPI AI Service)
 # =========================

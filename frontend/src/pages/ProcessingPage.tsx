@@ -1,62 +1,131 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 
-import { cn } from "../lib/cn";
-import {
-  processingTimeline,
-  uploadedProcedureFiles,
-} from "../features/procedure/mockReview";
-import {
-  ProcedureDraft,
-  formatPhone,
-} from "../features/procedure/procedureDraft";
-import { ProcedureStepper } from "../components/ProcedureStepper";
-import { SiteLayout } from "../components/SiteLayout";
+import { cn } from '../lib/cn';
+import { ProcedureStepper } from '../components/ProcedureStepper';
+import { SiteLayout } from '../components/SiteLayout';
+import { api, ReviewProcessingResponse } from '../lib/api';
+import { withSubmissionId } from '../lib/procedure';
+import { useResolvedSubmissionId, useSubmissionQuery } from '../lib/useSubmissionQuery';
 
-type ProcessingPageProps = {
-  draft: ProcedureDraft;
-  onNavigate: (path: string) => void;
-};
-
-const FINAL_STAGE = processingTimeline.length;
-
-export const ProcessingPage = ({
-  draft,
-  onNavigate,
-}: ProcessingPageProps) => {
-  const [progressStage, setProgressStage] = useState(1);
+export const ProcessingPage = () => {
+  const { submissionId, isResolving } = useResolvedSubmissionId('/processing');
+  const { navigateWithSubmission } = useSubmissionQuery();
+  const [review, setReview] = useState<ReviewProcessingResponse | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
-    setProgressStage(1);
+    if (!submissionId) {
+      return;
+    }
 
-    const interval = window.setInterval(() => {
-      setProgressStage((current) => {
-        if (current >= FINAL_STAGE) {
-          window.clearInterval(interval);
-          return current;
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    const pollReview = async () => {
+      try {
+        const latestReview = await api.getReviewLatest(submissionId);
+
+        if (!cancelled) {
+          setReview(latestReview);
+          setErrorMessage('');
         }
 
-        return current + 1;
-      });
-    }, 1400);
+        if ((latestReview.isComplete || latestReview.status === 'failed') && intervalId) {
+          window.clearInterval(intervalId);
+        }
+      } catch (error) {
+        try {
+          const submission = await api.getSubmission(submissionId);
+
+          if (!cancelled && submission.resumeTarget.route !== '/processing') {
+            const nextPath =
+              submission.resumeTarget.route === '/register'
+                ? withSubmissionId(
+                    `/register?step=${submission.resumeTarget.step ?? 1}`,
+                    submission.id,
+                  )
+                : withSubmissionId(submission.resumeTarget.route, submission.id);
+
+            window.location.replace(nextPath);
+            return;
+          }
+        } catch {
+          // Ignore fallback errors and surface the original request failure below.
+        }
+
+        if (!cancelled) {
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Không thể tải tiến độ phân tích.',
+          );
+        }
+      }
+    };
+
+    void pollReview();
+    intervalId = window.setInterval(() => {
+      void pollReview();
+    }, 1000);
 
     return () => {
-      window.clearInterval(interval);
+      cancelled = true;
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
     };
-  }, []);
+  }, [submissionId]);
 
-  const isComplete = progressStage >= FINAL_STAGE;
+  const isComplete = review?.isComplete ?? false;
+  const isFailed = review?.status === 'failed';
 
   const remainingLabel = useMemo(() => {
-    if (isComplete) {
-      return "Đã hoàn tất phân tích";
+    if (!review) {
+      return 'Khoảng 2 phút';
     }
 
-    if (progressStage >= 3) {
-      return "Khoảng 1 phút";
+    if (review.status === 'failed') {
+      return 'Phân tích thất bại';
     }
 
-    return "Khoảng 2 phút";
-  }, [isComplete, progressStage]);
+    if (review.isComplete) {
+      return 'Đã hoàn tất';
+    }
+
+    return review.etaSeconds > 60 ? 'Khoảng 2 phút' : 'Khoảng 1 phút';
+  }, [review]);
+
+  const handleRetry = async () => {
+    if (!submissionId || !isFailed) {
+      return;
+    }
+
+    setIsRetrying(true);
+    setErrorMessage('');
+
+    try {
+      await api.startReview(submissionId);
+      const refreshedReview = await api.getReviewLatest(submissionId);
+      setReview(refreshedReview);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể thử lại phân tích.');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  if (isResolving || !review) {
+    return (
+      <SiteLayout>
+        <main className="page-shell pt-28 md:pt-32">
+          <div className="container">
+            <div className="card-soft rounded-feature p-10 text-center text-text-muted">
+              {errorMessage || 'Đang tải trạng thái phân tích...'}
+            </div>
+          </div>
+        </main>
+      </SiteLayout>
+    );
+  }
 
   return (
     <SiteLayout>
@@ -67,9 +136,7 @@ export const ProcessingPage = ({
               Trạng thái xử lý hồ sơ
             </h1>
             <p className="mt-3 max-w-3xl text-lg leading-relaxed text-text-muted">
-              Hệ thống đang kiểm tra tính hợp lệ của các tệp bạn vừa tải lên và
-              đối chiếu với thông tin kê khai để chuẩn bị kết quả phân tích chi
-              tiết.
+              Gateway đang theo dõi tiến trình AI/OCR từ dịch vụ FastAPI và đồng bộ kết quả về hồ sơ của bạn.
             </p>
           </header>
 
@@ -81,105 +148,88 @@ export const ProcessingPage = ({
                 <header className="mb-12 text-center">
                   <div
                     className={cn(
-                      "mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full",
+                      'mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full',
                       isComplete
-                        ? "bg-state-success/12 text-state-success"
-                        : "bg-surface-hero text-brand-primary",
+                        ? 'bg-state-success/12 text-state-success'
+                        : isFailed
+                          ? 'bg-state-error/12 text-state-error'
+                          : 'bg-surface-hero text-brand-primary',
                     )}
                   >
                     <span
                       className={cn(
-                        "material-symbols-outlined text-4xl",
-                        isComplete ? "" : "animate-spin [animation-duration:3s]",
+                        'material-symbols-outlined text-4xl',
+                        !isComplete && !isFailed && 'animate-spin [animation-duration:3s]',
                       )}
-                      style={
-                        isComplete
-                          ? { fontVariationSettings: "'FILL' 1" }
-                          : undefined
-                      }
+                      style={isComplete || isFailed ? { fontVariationSettings: "'FILL' 1" } : undefined}
                     >
-                      {isComplete ? "check_circle" : "sync"}
+                      {isComplete ? 'check_circle' : isFailed ? 'error' : 'sync'}
                     </span>
                   </div>
                   <h2 className="text-3xl font-bold text-brand-deep md:text-4xl">
                     {isComplete
-                      ? "Phân tích hồ sơ đã hoàn tất"
-                      : "Hệ thống đang kiểm tra hồ sơ của bạn"}
+                      ? 'Phân tích AI đã hoàn tất'
+                      : isFailed
+                        ? 'Phân tích AI thất bại'
+                        : 'Hệ thống đang phân tích hồ sơ'}
                   </h2>
                   <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-text-muted">
                     {isComplete
-                      ? "AI đã tổng hợp xong các điểm cần lưu ý. Bạn có thể mở kết quả để xem lỗi chi tiết và cách sửa phù hợp."
-                      : "Trí tuệ nhân tạo đang phân tích các tài liệu bạn đã tải lên để đảm bảo tính hợp lệ theo quy định hiện hành."}
+                      ? 'Kết quả mới nhất đã sẵn sàng. Bạn có thể mở trang kết quả để tiếp tục.'
+                      : isFailed
+                        ? review.errorMessage || 'Dịch vụ AI chưa thể hoàn tất lần phân tích này.'
+                        : 'Bạn có thể chờ tại trang này trong khi OCR và bước đối chiếu pháp lý tiếp tục chạy nền.'}
                   </p>
                 </header>
 
                 <div className="mx-auto max-w-2xl">
-                  {processingTimeline.map((item, index) => {
-                    const isDone = index < progressStage;
-                    const isActive = index === progressStage && !isComplete;
-                    const isLast = index === processingTimeline.length - 1;
+                  {review.timeline.map((item, index) => {
+                    const isDone = item.state === 'completed';
+                    const isActive = item.state === 'current' && !isComplete && !isFailed;
+                    const isLast = index === review.timeline.length - 1;
 
                     return (
                       <div
                         key={item.id}
                         className={cn(
-                          "relative ml-4 flex gap-6",
-                          !isLast && "border-l-2 pb-8",
-                          isDone ? "border-brand-secondary/30" : "border-border-base",
+                          'relative ml-4 flex gap-6',
+                          !isLast && 'border-l-2 pb-8',
+                          isDone ? 'border-brand-secondary/30' : 'border-border-base',
                         )}
                       >
                         <div
                           className={cn(
-                            "absolute -left-[1.35rem] top-0 flex h-10 w-10 items-center justify-center rounded-full ring-8 ring-surface-card",
+                            'absolute -left-[1.35rem] top-0 flex h-10 w-10 items-center justify-center rounded-full ring-8 ring-surface-card',
                             isDone
-                              ? "bg-brand-secondary text-text-inverse"
+                              ? 'bg-brand-secondary text-text-inverse'
                               : isActive
-                                ? "border-2 border-brand-secondary bg-surface-card text-brand-secondary shadow-card"
-                                : "bg-surface-hero text-text-muted",
+                                ? 'border-2 border-brand-secondary bg-surface-card text-brand-secondary shadow-card'
+                                : 'bg-surface-hero text-text-muted',
                           )}
                         >
                           <span
                             className={cn(
-                              "material-symbols-outlined text-xl",
-                              isActive && "animate-spin [animation-duration:3s]",
+                              'material-symbols-outlined text-xl',
+                              isActive && 'animate-spin [animation-duration:3s]',
                             )}
-                            style={
-                              isDone && !isActive
-                                ? { fontVariationSettings: "'FILL' 1" }
-                                : undefined
-                            }
+                            style={isDone && !isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
                           >
-                            {isDone && !isActive ? "check" : item.icon}
+                            {isDone && !isActive ? 'check' : item.icon}
                           </span>
                         </div>
 
-                        <div
-                          className={cn(
-                            "pl-6",
-                            !isDone && !isActive && "opacity-60",
-                          )}
-                        >
-                          <h3
-                            className={cn(
-                              "text-lg font-bold",
-                              isActive
-                                ? "text-brand-secondary"
-                                : "text-brand-deep",
-                            )}
-                          >
+                        <div className={cn('pl-6', item.state === 'pending' && 'opacity-60')}>
+                          <h3 className={cn('text-lg font-bold', isActive ? 'text-brand-secondary' : 'text-brand-deep')}>
                             {item.title}
                           </h3>
-                          <p
-                            className={cn(
-                              "mt-1 text-sm",
-                              isActive ? "font-medium text-brand-secondary" : "text-text-muted",
-                            )}
-                          >
+                          <p className={cn('mt-1 text-sm', isActive ? 'font-medium text-brand-secondary' : 'text-text-muted')}>
                             {isDone
                               ? item.completedLabel
-                              : isActive
-                                ? "Đang xử lý dữ liệu AI..."
-                                : item.pendingLabel}
+                              : isFailed
+                                ? 'Quy trình đã dừng trước khi hoàn tất bước này.'
+                                : isActive
+                                  ? 'AI đang xử lý bước này...'
+                                  : item.pendingLabel}
                           </p>
                         </div>
                       </div>
@@ -189,39 +239,45 @@ export const ProcessingPage = ({
 
                 <div className="mt-16 flex flex-col items-center gap-6 border-t border-border-base/70 pt-10">
                   <div className="flex items-center gap-3 rounded-full bg-surface-subtle px-6 py-3">
-                    <span className="material-symbols-outlined text-brand-primary">
-                      schedule
-                    </span>
+                    <span className="material-symbols-outlined text-brand-primary">schedule</span>
                     <span className="font-medium text-brand-deep">
-                      Thời gian còn lại dự kiến:{" "}
-                      <strong className="text-brand-secondary">
-                        {remainingLabel}
-                      </strong>
+                      Trạng thái hiện tại: <strong className="text-brand-secondary">{remainingLabel}</strong>
                     </span>
                   </div>
 
-                  <p className="max-w-xl text-center italic leading-relaxed text-text-muted">
-                    {isComplete
-                      ? "Bạn có thể mở kết quả ngay bây giờ hoặc quay lại để bổ sung tài liệu trước khi phân tích lại."
-                      : "Bạn có thể tiếp tục chờ hoặc quay lại sau. Chúng tôi sẽ thông báo khi hoàn tất."}
-                  </p>
+                  {errorMessage ? (
+                    <div className="w-full rounded-xl border border-state-error/20 bg-state-error/10 px-4 py-3 text-sm text-state-error">
+                      {errorMessage}
+                    </div>
+                  ) : null}
 
                   <div className="mt-2 flex w-full flex-col justify-center gap-4 sm:flex-row">
                     <button
                       type="button"
-                      onClick={() => onNavigate("/documents")}
+                      onClick={() => navigateWithSubmission('/documents', submissionId)}
                       className="btn-outline px-8 py-4"
                     >
                       Quay lại tài liệu
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate("/results")}
-                      disabled={!isComplete}
-                      className="btn-primary px-8 py-4"
-                    >
-                      {isComplete ? "Xem kết quả phân tích" : "Đang tổng hợp..."}
-                    </button>
+                    {isFailed ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleRetry()}
+                        disabled={isRetrying}
+                        className="btn-primary px-8 py-4 disabled:opacity-50"
+                      >
+                        {isRetrying ? 'Đang thử lại...' : 'Thử lại phân tích AI'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => navigateWithSubmission('/results', submissionId)}
+                        disabled={!isComplete}
+                        className="btn-primary px-8 py-4 disabled:opacity-50"
+                      >
+                        {isComplete ? 'Mở kết quả phân tích' : 'Đang chờ kết quả...'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -230,121 +286,30 @@ export const ProcessingPage = ({
             <aside className="space-y-6 lg:sticky lg:top-32 lg:col-span-4">
               <div className="card-soft rounded-feature p-6 shadow-card">
                 <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-brand-deep">
-                  <span className="material-symbols-outlined text-brand-primary">
-                    info
-                  </span>
+                  <span className="material-symbols-outlined text-brand-primary">info</span>
                   Tóm tắt hồ sơ
                 </h3>
 
                 <div className="mb-8 rounded-panel bg-surface-card p-4 shadow-card">
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontVariationSettings: "'FILL' 1" }}
-                      >
+                      <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                         person
                       </span>
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
-                        Chủ hộ kinh doanh
+                        Chủ hộ
                       </p>
-                      <p className="text-lg font-bold text-brand-deep">
-                        {draft.ownerName}
-                      </p>
+                      <p className="text-lg font-bold text-brand-deep">{review.summary.ownerName}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <SummaryInfo label="Liên hệ" value={formatPhone(draft.phone)} />
-                  <SummaryInfo label="Tên hộ kinh doanh" value={draft.businessName} />
-                  <SummaryInfo
-                    label="Tài liệu đã tải"
-                    value={`${uploadedProcedureFiles.length} tệp`}
-                  />
-                </div>
-
-                <div className="mt-8 space-y-3">
-                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-text-muted">
-                    Tệp đang xử lý
-                  </p>
-                  {uploadedProcedureFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between rounded-xl bg-surface-card p-4 transition hover:ring-2 hover:ring-brand-secondary/20"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-brand-secondary">
-                          {file.type === "image" ? "image" : "description"}
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium text-brand-deep">
-                            {file.label}
-                          </p>
-                          <p className="text-xs text-text-muted">
-                            {file.size} • {file.format}
-                          </p>
-                        </div>
-                      </div>
-                      <span
-                        className={cn(
-                          "material-symbols-outlined text-lg",
-                          file.status === "verified"
-                            ? "text-brand-secondary"
-                            : "animate-pulse text-brand-primary",
-                        )}
-                        style={
-                          file.status === "verified"
-                            ? { fontVariationSettings: "'FILL' 1" }
-                            : undefined
-                        }
-                      >
-                        {file.status === "verified" ? "check_circle" : "settings"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-8 rounded-panel bg-brand-primary p-4 text-text-inverse">
-                  <div className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-brand-secondary">
-                      lightbulb
-                    </span>
-                    <p className="text-sm leading-relaxed text-text-inverse/90">
-                      AI sẽ ưu tiên đối chiếu các trường dễ bị trả hồ sơ như tên
-                      hộ kinh doanh, địa chỉ, thông tin ủy quyền và phạm vi hoạt
-                      động.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card-feature relative overflow-hidden p-6">
-                <div className="relative z-10">
-                  <h4 className="text-lg font-bold text-brand-primary">
-                    Cần hỗ trợ thêm?
-                  </h4>
-                  <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                    Trong lúc chờ kết quả, bạn có thể mở trang hướng dẫn để rà
-                    soát lại checklist hoặc chuẩn bị bản scan tốt hơn.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate("/guide")}
-                    className="mt-4 btn-ghost px-0 py-0 text-sm"
-                  >
-                    Mở hướng dẫn
-                    <span className="material-symbols-outlined text-[18px]">
-                      arrow_forward
-                    </span>
-                  </button>
-                </div>
-                <div className="absolute -bottom-5 -right-5 opacity-10">
-                  <span className="material-symbols-outlined text-[120px] text-brand-primary">
-                    support_agent
-                  </span>
+                  <SummaryInfo label="Liên hệ" value={review.summary.contact} />
+                  <SummaryInfo label="Hộ kinh doanh" value={review.summary.businessName} />
+                  <SummaryInfo label="Tệp đã tải lên" value={`${review.summary.uploadedCount} tệp`} />
                 </div>
               </div>
             </aside>
@@ -360,13 +325,9 @@ type SummaryInfoProps = {
   value: string;
 };
 
-const SummaryInfo = ({ label, value }: SummaryInfoProps) => {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
-        {label}
-      </p>
-      <p className="font-medium text-brand-deep">{value}</p>
-    </div>
-  );
-};
+const SummaryInfo = ({ label, value }: SummaryInfoProps) => (
+  <div className="space-y-1">
+    <p className="text-xs font-bold uppercase tracking-[0.18em] text-text-muted">{label}</p>
+    <p className="font-medium text-brand-deep">{value}</p>
+  </div>
+);

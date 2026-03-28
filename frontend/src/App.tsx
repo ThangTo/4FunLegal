@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
-import { RegistrationStep, initialProcedureDraft } from './features/procedure/procedureDraft';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { AssistantPage } from './pages/AssistantPage';
+import { AuthCompleteProfilePage } from './pages/AuthCompleteProfilePage';
+import { AuthLoginPage } from './pages/AuthLoginPage';
+import { AuthRegisterPage } from './pages/AuthRegisterPage';
 import { DocumentsPage } from './pages/DocumentsPage';
+import { FinalSubmissionPage } from './pages/FinalSubmissionPage';
 import { GuidePage } from './pages/GuidePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LandingPage } from './pages/LandingPage';
@@ -18,12 +22,16 @@ const ROUTE_TITLES = {
   '/': 'AI Agent - Dịch vụ Hộ kinh doanh',
   '/guide': 'Hướng dẫn chuẩn bị hồ sơ | Dịch vụ Hộ kinh doanh',
   '/register': 'Đăng ký hộ kinh doanh | Dịch vụ Hộ kinh doanh',
-  '/documents': 'Hoàn thiện hồ sơ tài liệu | Dịch vụ Hộ kinh doanh',
+  '/documents': 'Hoàn thiện tài liệu | Dịch vụ Hộ kinh doanh',
   '/processing': 'Trạng thái xử lý hồ sơ | Dịch vụ Hộ kinh doanh',
   '/results': 'Kết quả kiểm tra hồ sơ | Dịch vụ Hộ kinh doanh',
+  '/submit': 'Nộp chính thức hồ sơ | Dịch vụ Hộ kinh doanh',
   '/history': 'Lịch sử hồ sơ | Dịch vụ Hộ kinh doanh',
   '/library': 'Kho tài liệu nghiệp vụ | Dịch vụ Hộ kinh doanh',
   '/assistant': 'Trợ lý AI pháp lý | Dịch vụ Hộ kinh doanh',
+  '/auth/login': 'Đăng nhập | Dịch vụ Hộ kinh doanh',
+  '/auth/register': 'Tạo tài khoản | Dịch vụ Hộ kinh doanh',
+  '/auth/complete-profile': 'Hoàn tất hồ sơ tài khoản | Dịch vụ Hộ kinh doanh',
 } as const;
 
 type AppRoute = keyof typeof ROUTE_TITLES;
@@ -42,31 +50,25 @@ const getInitialTheme = (): AppTheme => {
   return 'citizen';
 };
 
-const normalizeRoute = (path: string): AppRoute =>
-  path === '/guide'
-    ? '/guide'
-    : path === '/register'
-      ? '/register'
-      : path === '/documents'
-        ? '/documents'
-        : path === '/processing'
-          ? '/processing'
-          : path === '/results'
-            ? '/results'
-            : path === '/history'
-              ? '/history'
-              : path === '/library'
-                ? '/library'
-                : path === '/assistant'
-                  ? '/assistant'
-                  : '/';
+const normalizeRoute = (path: string): AppRoute => {
+  if (path === '/guide') return '/guide';
+  if (path === '/register') return '/register';
+  if (path === '/documents') return '/documents';
+  if (path === '/processing') return '/processing';
+  if (path === '/results') return '/results';
+  if (path === '/submit') return '/submit';
+  if (path === '/history') return '/history';
+  if (path === '/library') return '/library';
+  if (path === '/assistant') return '/assistant';
+  if (path === '/auth/login') return '/auth/login';
+  if (path === '/auth/register') return '/auth/register';
+  if (path === '/auth/complete-profile') return '/auth/complete-profile';
+  return '/';
+};
 
 const App = () => {
   const location = useLocation();
-  const routerNavigate = useNavigate();
   const [theme, setTheme] = useState<AppTheme>(getInitialTheme);
-  const [procedureDraft, setProcedureDraft] = useState(initialProcedureDraft);
-  const [registrationStep, setRegistrationStep] = useState<RegistrationStep>(1);
 
   const route = normalizeRoute(location.pathname);
 
@@ -82,67 +84,71 @@ const App = () => {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
-  }, [location.pathname]);
-
-  const navigate = (path: string) => {
-    const nextRoute = normalizeRoute(path);
-
-    if (nextRoute === route) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    routerNavigate(nextRoute);
-  };
+  }, [location.pathname, location.search]);
 
   return (
     <div className="min-h-screen bg-surface-base text-text-base">
       <Routes>
-        <Route path="/" element={<LandingPage onNavigate={navigate} />} />
-        <Route path="/guide" element={<GuidePage onNavigate={navigate} />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/guide" element={<GuidePage />} />
+        <Route path="/auth/login" element={<AuthLoginPage />} />
+        <Route path="/auth/register" element={<AuthRegisterPage />} />
+        <Route path="/auth/complete-profile" element={<AuthCompleteProfilePage />} />
         <Route
           path="/register"
           element={
-            <RegistrationPage
-              draft={procedureDraft}
-              currentStep={registrationStep}
-              onDraftChange={setProcedureDraft}
-              onStepChange={setRegistrationStep}
-              onNavigate={navigate}
-            />
+            <ProtectedRoute>
+              <RegistrationPage />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/documents"
-          element={<DocumentsPage draft={procedureDraft} onNavigate={navigate} />}
+          element={
+            <ProtectedRoute>
+              <DocumentsPage />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/processing"
-          element={<ProcessingPage draft={procedureDraft} onNavigate={navigate} />}
+          element={
+            <ProtectedRoute>
+              <ProcessingPage />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/results"
           element={
-            <ResultsPage
-              draft={procedureDraft}
-              onNavigate={navigate}
-              onStepChange={setRegistrationStep}
-            />
+            <ProtectedRoute>
+              <ResultsPage />
+            </ProtectedRoute>
           }
         />
-        <Route path="/history" element={<HistoryPage onNavigate={navigate} />} />
         <Route
-          path="/library"
-          element={<LibraryPage draft={procedureDraft} onNavigate={navigate} />}
+          path="/submit"
+          element={
+            <ProtectedRoute>
+              <FinalSubmissionPage />
+            </ProtectedRoute>
+          }
         />
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute>
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/library" element={<LibraryPage />} />
         <Route
           path="/assistant"
           element={
-            <AssistantPage
-              draft={procedureDraft}
-              onNavigate={navigate}
-              onStepChange={setRegistrationStep}
-            />
+            <ProtectedRoute>
+              <AssistantPage />
+            </ProtectedRoute>
           }
         />
         <Route path="*" element={<Navigate replace to="/" />} />
