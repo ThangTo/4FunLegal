@@ -8,6 +8,7 @@ import { authRoutes } from './src/routes/auth.routes';
 import { assistantRoutes } from './src/routes/assistant.routes';
 import { contentRoutes } from './src/routes/content.routes';
 import { documentRoutes } from './src/routes/document.routes';
+import { legalAssistantRoutes } from './src/routes/legal-assistant.routes';
 import { libraryRoutes } from './src/routes/library.routes';
 import { reviewRoutes } from './src/routes/review.routes';
 import { submissionRoutes } from './src/routes/submission.routes';
@@ -50,6 +51,7 @@ app.get('/health', (_req, res) =>
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/library', libraryRoutes);
+app.use('/api/v1/legal-assistant', legalAssistantRoutes);
 app.use('/api/v1/users', authenticateRequired, userRoutes);
 app.use(
   '/api/v1/submissions',

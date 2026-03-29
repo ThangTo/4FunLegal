@@ -17,7 +17,7 @@ const NAV_ITEMS: Array<{ key: NavKey; label: string; to: string }> = [
   { key: 'history', label: 'Hồ sơ của tôi', to: '/history' },
   { key: 'library', label: 'Tra cứu', to: '/library' },
   { key: 'guide', label: 'Hướng dẫn', to: '/guide' },
-  { key: 'support', label: 'Hỗ trợ', to: '/assistant' },
+  { key: 'support', label: 'Hỗ trợ', to: '/support' },
 ];
 
 const getInitial = (fullName?: string | null) =>
@@ -51,7 +51,10 @@ export const SiteLayout = ({ children, showAssistant = true }: SiteLayoutProps) 
       return location.pathname.startsWith('/guide');
     }
 
-    return location.pathname.startsWith('/assistant');
+    return (
+      location.pathname.startsWith('/support') ||
+      location.pathname.startsWith('/assistant')
+    );
   };
 
   return (
@@ -144,7 +147,10 @@ export const SiteLayout = ({ children, showAssistant = true }: SiteLayoutProps) 
                 <Link to="/auth/login" className="btn-outline hidden h-10 px-4 md:inline-flex">
                   Đăng nhập
                 </Link>
-                <Link to="/auth/register" className="btn-primary hidden h-10 px-4 md:inline-flex">
+                <Link
+                  to="/auth/register"
+                  className="btn-primary hidden h-10 px-4 md:inline-flex"
+                >
                   Tạo tài khoản
                 </Link>
                 <Link

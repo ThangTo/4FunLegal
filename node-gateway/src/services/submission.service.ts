@@ -1,6 +1,7 @@
 import { FilterQuery } from 'mongoose';
 
 import { AssistantThreadModel } from '../models/assistant.model';
+import { SubmissionFileModel } from '../models/document.model';
 import { ReviewModel } from '../models/review.model';
 import { ISubmissionDocument, SubmissionModel } from '../models/submission.model';
 import { AppError } from '../utils/app-error';
@@ -100,10 +101,25 @@ export const ensureSubmissionIsEditable = (submission: ISubmissionDocument) => {
 
 export const clearDerivedArtifacts = async (submission: ISubmissionDocument) => {
   submission.latestReviewId = null;
-  await AssistantThreadModel.deleteMany({
-    submissionId: submission._id,
-    userId: submission.userId,
-  });
+  await Promise.all([
+    AssistantThreadModel.deleteMany({
+      submissionId: submission._id,
+      userId: submission.userId,
+    }),
+    SubmissionFileModel.updateMany(
+      {
+        submissionId: submission._id,
+        userId: submission.userId,
+      },
+      {
+        $set: {
+          validationStatus: 'uploaded',
+          semanticStatus: 'pending',
+          semanticIssues: [],
+        },
+      },
+    ),
+  ]);
 };
 
 const applySubmissionProgress = (

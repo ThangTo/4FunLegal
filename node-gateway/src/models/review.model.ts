@@ -16,6 +16,9 @@ export interface IReviewDocument extends Document {
     missingDocuments: Array<Record<string, unknown>>;
     nextActions: Array<Record<string, unknown>>;
     references: string[];
+    documentChecks?: Array<Record<string, unknown>>;
+    fieldComparisons?: Array<Record<string, unknown>>;
+    legalBasis?: string[];
   } | null;
   startedAt: Date;
   completedAt?: Date | null;

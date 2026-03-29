@@ -1,97 +1,114 @@
-"""
-Synthesizer Agent: Tổng hợp câu trả lời pháp lý chuyên nghiệp.
-
-Giao tiếp với Gemini 1.5 Flash để sinh câu trả lời:
-- Prompt pháp lý chuyên sâu (vai "Luật sư ảo")
-- Chain-of-Thought: phân tích logic pháp lý trước khi kết luận
-- Trích dẫn chính xác Điều/Khoản
-"""
 import google.generativeai as genai
 
 from src.config import GEMINI_API_KEY, GEMINI_MODEL_NAME
 
 
-LEGAL_PROMPT_TEMPLATE = """Bạn là một Luật sư tư vấn pháp lý chuyên nghiệp và đáng tin cậy tại Việt Nam.
-Nhiệm vụ của bạn là trả lời câu hỏi pháp lý dựa HOÀN TOÀN và CHỈ dựa vào các điều khoản luật được cung cấp bên dưới.
+LEGAL_PROMPT_TEMPLATE = """Bạn là một trợ lý pháp lý đáng tin cậy tại Việt Nam.
+Nhiệm vụ của bạn là trả lời câu hỏi dựa HOÀN TOÀN vào khối NGỮ CẢNH PHÁP LÝ được cung cấp.
 
-══════════════════════════════════════════
 QUY TẮC BẮT BUỘC:
-══════════════════════════════════════════
-1. CHỈ sử dụng thông tin từ phần "NGỮ CẢNH PHÁP LÝ" bên dưới để trả lời. KHÔNG được bịa thêm điều khoản.
-2. PHẢI trích dẫn chính xác số Điều, Khoản, Điểm khi đưa ra nhận định.
-3. Nếu ngữ cảnh không đủ để trả lời, hãy nói rõ: "Dựa trên các điều khoản được cung cấp, tôi không tìm thấy quy định trực tiếp về vấn đề này."
-4. Nếu có nhiều điều khoản liên quan, hãy phân tích mối liên hệ giữa chúng.
+1. Chỉ dựa trên ngữ cảnh pháp lý đã truy xuất; không tự ý bịa thêm điều khoản.
+2. Nếu có tài liệu đang xem, ưu tiên trả lời gắn với tài liệu đó và nêu rõ ràng ràng buộc này.
+3. Phải giữ được mạch hỏi đáp hiện tại dựa trên đối thoại gần đây.
+4. Nếu ngữ cảnh không đủ, nói rõ ràng không tìm thấy căn cứ trực tiếp.
+5. Khi kết luận, nếu có trích dẫn thì phải giữ nguyên số Điều/Khoản/điểm xuất hiện trong ngữ cảnh.
 
-══════════════════════════════════════════
-PHƯƠNG PHÁP TRẢ LỜI (Chain-of-Thought):
-══════════════════════════════════════════
-Hãy trả lời theo cấu trúc sau:
+ĐỐI THOẠI GẦN ĐÂY:
+{recent_history}
 
-**1. Phân tích câu hỏi:** Xác định vấn đề pháp lý cốt lõi mà người dùng cần giải đáp.
-**2. Cơ sở pháp lý:** Liệt kê các Điều/Khoản liên quan trực tiếp từ ngữ cảnh, kèm nội dung tóm tắt.
-**3. Phân tích logic pháp lý:** Lập luận dựa trên các điều khoản đã trích dẫn, giải thích mối quan hệ giữa chúng.
-**4. Kết luận tư vấn:** Đưa ra câu trả lời rõ ràng, dễ hiểu cho người không chuyên luật.
+TÀI LIỆU ĐANG XEM:
+{document_context}
 
-══════════════════════════════════════════
-NGỮ CẢNH PHÁP LÝ (từ Luật Doanh nghiệp 2020):
-══════════════════════════════════════════
-{context}
+NGỮ CẢNH PHÁP LÝ ĐÃ TRUY XUẤT:
+{legal_context}
 
-══════════════════════════════════════════
-CÂU HỎI CỦA NGƯỜI DÙNG:
-══════════════════════════════════════════
+CÂU HỎI HIỆN TẠI:
 {question}
 
-══════════════════════════════════════════
-Hãy phân tích và trả lời theo cấu trúc trên:"""
+Hãy trả lời gọn rõ, grounded, và nếu đang ưu tiên tài liệu đang xem thì nêu điều đó trong câu trả lời."""
 
 
-LOOKUP_PROMPT_TEMPLATE = """Bạn là một Luật sư tư vấn pháp lý chuyên nghiệp tại Việt Nam.
-Hãy trình bày nội dung điều luật dưới đây theo cách dễ hiểu, có cấu trúc rõ ràng.
-Giữ nguyên số hiệu Điều, Khoản, Điểm khi trích dẫn.
+LOOKUP_PROMPT_TEMPLATE = """Bạn là một trợ lý pháp lý Việt Nam.
+Hãy giải thích nội dung điều luật dưới đây theo cách dễ hiểu.
+Nếu có tài liệu đang xem thì nêu rằng bạn đang đối chiếu với tài liệu đó, nhưng vẫn chỉ kết luận dựa trên ngữ cảnh pháp lý.
 
-══════════════════════════════════════════
+ĐỐI THOẠI GẦN ĐÂY:
+{recent_history}
+
+TÀI LIỆU ĐANG XEM:
+{document_context}
+
 NỘI DUNG ĐIỀU LUẬT:
-══════════════════════════════════════════
-{context}
+{legal_context}
 
-══════════════════════════════════════════
 CÂU HỎI:
-══════════════════════════════════════════
 {question}
 
-══════════════════════════════════════════
-Hãy giải thích rõ ràng, tóm tắt ý chính và nêu bật các điểm quan trọng:"""
+Trả lời ngắn gọn, rõ ràng, dễ hiểu, có trích dẫn nếu xuất hiện trong ngữ cảnh."""
 
 
 class SynthesizerAgent:
-    """Tổng hợp câu trả lời pháp lý bằng Gemini với Chain-of-Thought."""
+    """Tổng hợp câu trả lời pháp lý bằng Gemini."""
 
     def __init__(self):
         genai.configure(api_key=GEMINI_API_KEY)
         self.model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
-    def synthesize(self, question: str, context: str,
-                   is_lookup: bool = False) -> str:
-        """
-        Sinh câu trả lời pháp lý từ context.
-
-        Args:
-            question: Câu hỏi gốc.
-            context: Context đã tổng hợp từ Researcher hoặc Lookup.
-            is_lookup: True nếu đây là truy vấn trực tiếp (LOOKUP).
-
-        Returns:
-            Câu trả lời chuyên nghiệp theo cấu trúc Chain-of-Thought.
-        """
+    def synthesize(
+        self,
+        question: str,
+        legal_context: str,
+        recent_history: list[dict] | None = None,
+        document_context: dict | None = None,
+        is_lookup: bool = False,
+    ) -> str:
         template = LOOKUP_PROMPT_TEMPLATE if is_lookup else LEGAL_PROMPT_TEMPLATE
-        prompt = template.format(context=context, question=question)
+        prompt = template.format(
+            question=question,
+            legal_context=legal_context,
+            recent_history=self._format_recent_history(recent_history or []),
+            document_context=self._format_document_context(document_context),
+        )
 
         try:
             response = self.model.generate_content(prompt)
             return response.text
-        except Exception as e:
+        except Exception as exc:
             return (
-                f"⚠️ Không thể tạo câu trả lời do lỗi API: {str(e)}\n\n"
-                f"Dưới đây là ngữ cảnh pháp lý đã tìm được:\n{context[:2000]}"
+                "Không thể tạo câu trả lời do lỗi API. "
+                f"Lỗi: {exc}\n\nNgữ cảnh truy xuất:\n{legal_context[:2000]}"
             )
+
+    def _format_recent_history(self, recent_history: list[dict]) -> str:
+        if not recent_history:
+            return "Không có."
+
+        lines = []
+        for item in recent_history[-4:]:
+            role = str(item.get("role", "user")).upper()
+            content = str(item.get("content", "")).strip()
+            if content:
+                lines.append(f"{role}: {content}")
+        return "\n".join(lines) if lines else "Không có."
+
+    def _format_document_context(self, document_context: dict | None) -> str:
+        if not document_context:
+            return "Không có tài liệu đang xem."
+
+        title = str(document_context.get("documentTitle", "")).strip()
+        summary = str(document_context.get("documentSummary", "")).strip()
+        source_name = str(document_context.get("sourceName", "")).strip()
+        highlights = document_context.get("highlights", []) or []
+
+        lines = []
+        if title:
+            lines.append(f"Tiêu đề: {title}")
+        if source_name:
+            lines.append(f"Nguồn: {source_name}")
+        if summary:
+            lines.append(f"Tóm tắt: {summary}")
+        if highlights:
+            lines.append("Điểm nổi bật:")
+            lines.extend(f"- {item}" for item in highlights[:4])
+
+        return "\n".join(lines) if lines else "Không có tài liệu đang xem."

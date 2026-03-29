@@ -6,6 +6,7 @@ import { ReviewModel } from '../models/review.model';
 import { SubmissionModel } from '../models/submission.model';
 import { NewsletterSubscriptionModel } from '../models/subscription.model';
 import { UserModel } from '../models/user.model';
+import { officialLibraryDocuments } from './library-documents.data';
 import { hashPassword } from '../utils/auth-password';
 import { landingPageContent, guidePageContent } from '../utils/demo-content';
 import {
@@ -15,7 +16,7 @@ import {
 } from '../utils/review-helpers';
 import { buildSubmissionCode, defaultSubmissionDraft } from '../utils/submission-helpers';
 
-const demoLibraryDocuments = [
+const legacyDemoLibraryDocuments = [
   {
     slug: 'procedure-household-online',
     title: 'Lộ trình 5 bước đăng ký hộ kinh doanh cá thể năm 2024',
@@ -114,6 +115,8 @@ const demoLibraryDocuments = [
     relatedConditions: ['household'],
   },
 ] as const;
+
+const demoLibraryDocuments = officialLibraryDocuments;
 
 const baseDocuments = [
   {
@@ -222,6 +225,12 @@ export const seedDemoData = async () => {
     { slug: 'guide', title: 'Hướng dẫn chuẩn bị hồ sơ', payload: guidePageContent, version: 1 },
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
+
+  await LibraryDocumentModel.deleteMany({
+    slug: {
+      $nin: demoLibraryDocuments.map((item) => item.slug),
+    },
+  });
 
   for (const [index, item] of demoLibraryDocuments.entries()) {
     await LibraryDocumentModel.findOneAndUpdate(

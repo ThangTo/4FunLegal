@@ -11,10 +11,12 @@ import { FinalSubmissionPage } from './pages/FinalSubmissionPage';
 import { GuidePage } from './pages/GuidePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LandingPage } from './pages/LandingPage';
+import { LibraryDocumentDetailPage } from './pages/LibraryDocumentDetailPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { ProcessingPage } from './pages/ProcessingPage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { ResultsPage } from './pages/ResultsPage';
+import { SupportPage } from './pages/SupportPage';
 import { AppTheme, isAppTheme } from './theme/themes';
 
 const STORAGE_KEY = 'ai-agent-theme';
@@ -28,7 +30,8 @@ const ROUTE_TITLES = {
   '/submit': 'Nộp chính thức hồ sơ | Dịch vụ Hộ kinh doanh',
   '/history': 'Lịch sử hồ sơ | Dịch vụ Hộ kinh doanh',
   '/library': 'Kho tài liệu nghiệp vụ | Dịch vụ Hộ kinh doanh',
-  '/assistant': 'Trợ lý AI pháp lý | Dịch vụ Hộ kinh doanh',
+  '/support': 'Trợ lý pháp lý AI | Dịch vụ Hộ kinh doanh',
+  '/assistant': 'Trợ lý hồ sơ AI | Dịch vụ Hộ kinh doanh',
   '/auth/login': 'Đăng nhập | Dịch vụ Hộ kinh doanh',
   '/auth/register': 'Tạo tài khoản | Dịch vụ Hộ kinh doanh',
   '/auth/complete-profile': 'Hoàn tất hồ sơ tài khoản | Dịch vụ Hộ kinh doanh',
@@ -58,7 +61,8 @@ const normalizeRoute = (path: string): AppRoute => {
   if (path === '/results') return '/results';
   if (path === '/submit') return '/submit';
   if (path === '/history') return '/history';
-  if (path === '/library') return '/library';
+  if (path === '/library' || path.startsWith('/library/')) return '/library';
+  if (path === '/support') return '/support';
   if (path === '/assistant') return '/assistant';
   if (path === '/auth/login') return '/auth/login';
   if (path === '/auth/register') return '/auth/register';
@@ -143,6 +147,8 @@ const App = () => {
           }
         />
         <Route path="/library" element={<LibraryPage />} />
+        <Route path="/library/:slug" element={<LibraryDocumentDetailPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route
           path="/assistant"
           element={

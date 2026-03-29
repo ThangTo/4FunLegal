@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import request from 'supertest';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 import { app } from '../../app';
 import { ContentPageModel } from '../models/content.model';
@@ -53,7 +53,7 @@ const waitForReviewState = async (
 };
 
 const buildSuccessAnalysis = () => ({
-  provider: 'deterministic-fastapi',
+  provider: 'grounded-fastapi',
   documents: [
     {
       id: expect.any(String),
@@ -61,36 +61,100 @@ const buildSuccessAnalysis = () => ({
       validationStatus: 'verified',
       ocrText: 'OCR text',
       ocrSummary: 'OCR summary',
+      extractedFields: {
+        ownerName: 'Tran Thi B',
+        idNumber: '012345678901',
+      },
+      extractionConfidence: 'high',
+      semanticStatus: 'matched',
+      semanticIssues: [],
     },
   ],
   review: {
     statusBanner: {
       tone: 'success',
       title: 'Du dieu kien so bo',
-      description: 'Ready for official submission.',
+      description: 'Ho so da du dieu kien de chuyen sang buoc nop chinh thuc.',
       score: 92,
-      scoreLabel: 'Ready for official submission',
+      scoreLabel: 'San sang nop chinh thuc',
     },
     summaryItems: [
       {
         id: 'documents-read',
         tone: 'success',
         icon: 'check_circle',
-        text: 'Processed all uploaded documents.',
+        text: 'Da doi chieu xong cac tai lieu cot loi voi du lieu ke khai.',
       },
     ],
     findings: [],
     missingDocuments: [],
+    documentChecks: [
+      {
+        documentId: expect.any(String),
+        documentLabel: 'CCCD',
+        documentType: 'citizen-id',
+        originalName: 'cccd-owner.txt',
+        status: 'matched',
+        summary: 'Thong tin dinh danh trong tai lieu da khop voi du lieu ke khai.',
+        extractionConfidence: 'high',
+        extractedFields: {
+          ownerName: 'Tran Thi B',
+          idNumber: '012345678901',
+        },
+        issues: [],
+        legalBasis: ['Nghi dinh 01/2021/ND-CP'],
+      },
+    ],
+    fieldComparisons: [
+      {
+        id: 'cmp-owner-name',
+        fieldKey: 'ownerName',
+        fieldLabel: 'Ten chu ho',
+        status: 'match',
+        submittedValue: 'Tran Thi B',
+        extractedValue: 'Tran Thi B',
+        reason: 'Thong tin dinh danh khop.',
+        sourceDocuments: [
+          {
+            documentId: expect.any(String),
+            documentLabel: 'CCCD',
+            documentType: 'citizen-id',
+            originalName: 'cccd-owner.txt',
+          },
+        ],
+        legalBasis: ['Nghi dinh 01/2021/ND-CP'],
+      },
+    ],
     nextActions: [
       {
         id: 'official-submit',
         step: 1,
-        title: 'Submit officially',
-        description: 'Create the internal receipt.',
+        title: 'Nop chinh thuc',
+        description: 'Tao bien nhan noi bo cho ho so da dat.',
       },
     ],
     references: ['Nghi dinh 01/2021/ND-CP'],
+    legalBasis: ['Nghi dinh 01/2021/ND-CP'],
   },
+});
+
+const buildFastApiHealth = (overrides: Partial<{
+  status: string;
+  serviceMode: string;
+  neo4jReady: boolean;
+  chromaReady: boolean;
+  geminiConfigured: boolean;
+  legalQaReady: boolean;
+}> = {}) => ({
+  status: 'OK',
+  service: 'fastapi-ai',
+  version: '2.0.0',
+  serviceMode: 'graph-rag',
+  neo4jReady: true,
+  chromaReady: true,
+  geminiConfigured: true,
+  legalQaReady: true,
+  ...overrides,
 });
 
 const mockSuccessfulReviewAnalysis = () => {
@@ -111,6 +175,13 @@ const mockSuccessfulReviewAnalysis = () => {
             validationStatus: 'verified',
             ocrText: 'OCR text',
             ocrSummary: 'OCR summary',
+            extractedFields: {
+              ownerName: 'Tran Thi B',
+              idNumber: '012345678901',
+            },
+            extractionConfidence: 'high',
+            semanticStatus: 'matched',
+            semanticIssues: [],
           })),
         },
       };
@@ -124,6 +195,100 @@ const mockSuccessfulReviewAnalysis = () => {
           references: ['Nghi dinh 01/2021/ND-CP'],
           actions: [],
           suggestedPrompts: ['Ho so nay con thieu gi?'],
+        },
+      };
+    }
+
+    throw new Error(`Unexpected axios.post call: ${targetUrl}`);
+  });
+};
+
+const mockSlowSuccessfulReviewAnalysis = (delayMs = 150) => {
+  vi.spyOn(axios, 'post').mockImplementation(async (url, payload) => {
+    const targetUrl = String(url);
+
+    if (targetUrl.includes('/internal/v1/reviews/analyze')) {
+      const typedPayload = payload as {
+        documents: Array<{ id: string }>;
+      };
+
+      await sleep(delayMs);
+
+      return {
+        data: {
+          ...buildSuccessAnalysis(),
+          documents: typedPayload.documents.map((document) => ({
+            id: document.id,
+            ocrStatus: 'completed',
+            validationStatus: 'verified',
+            ocrText: 'OCR text',
+            ocrSummary: 'OCR summary',
+            extractedFields: {
+              ownerName: 'Tran Thi B',
+              idNumber: '012345678901',
+            },
+            extractionConfidence: 'high',
+            semanticStatus: 'matched',
+            semanticIssues: [],
+          })),
+        },
+      };
+    }
+
+    if (targetUrl.includes('/internal/v1/assistant/reply')) {
+      return {
+        data: {
+          provider: 'deterministic-fastapi',
+          paragraphs: ['Assistant reply'],
+          references: ['Nghi dinh 01/2021/ND-CP'],
+          actions: [],
+          suggestedPrompts: ['Ho so nay con thieu gi?'],
+        },
+      };
+    }
+
+    throw new Error(`Unexpected axios.post call: ${targetUrl}`);
+  });
+};
+
+const mockLegalAssistantIntegration = (
+  healthOverrides: Partial<ReturnType<typeof buildFastApiHealth>> = {},
+) => {
+  vi.spyOn(axios, 'get').mockImplementation(async (url) => {
+    const targetUrl = String(url);
+
+    if (targetUrl.endsWith('/health')) {
+      return {
+        data: buildFastApiHealth(healthOverrides),
+      };
+    }
+
+    throw new Error(`Unexpected axios.get call: ${targetUrl}`);
+  });
+
+  vi.spyOn(axios, 'post').mockImplementation(async (url, payload) => {
+    const targetUrl = String(url);
+
+    if (targetUrl.includes('/internal/v1/legal/ask')) {
+      const typedPayload = payload as {
+        context?: {
+          documentTitle?: string;
+        };
+      };
+      return {
+        data: {
+          provider: 'graph-rag-fastapi',
+          routeType: 'ADVISORY',
+          answer:
+            'Đây là phản hồi pháp lý mẫu từ GraphRAG.\n\nBạn nên chuẩn bị hồ sơ và đối chiếu điều kiện áp dụng.',
+          citations: ['Luat Doanh nghiep 2020'],
+          confidenceScore: 0.91,
+          validationNotes: `Grounded against ${typedPayload.context?.documentTitle ?? 'legal graph'}`,
+          suggestedPrompts: ['Dieu kien dang ky ho kinh doanh gom nhung gi?'],
+          stats: {
+            topResults: 3,
+            groundedToDocumentContext: Boolean(typedPayload.context?.documentTitle),
+          },
         },
       };
     }
@@ -234,7 +399,8 @@ describe.sequential('gateway api', () => {
     const currentUser = await UserModel.findOne({ email: 'nguyenvana@gmail.com' }).lean();
 
     expect(response.status).toBe(201);
-    expect(response.body.data.draft.ownerName).toBe('Nguyễn Văn A');
+    expect(response.body.data.draft.email).toBe('nguyenvana@gmail.com');
+    expect(response.body.data.draft.phone).toBe('0901234567');
     expect(response.body.data.draft.businessName).toBe('');
     expect(response.body.data.status).toBe('draft');
     expect(currentUser?.defaultSubmissionId).toBe(response.body.data.id);
@@ -306,6 +472,9 @@ describe.sequential('gateway api', () => {
     expect(reviewLatestResponse.body.data.status).toBe('completed');
     expect(reviewResultResponse.status).toBe(200);
     expect(reviewResultResponse.body.data.submissionStatus).toBe('eligible');
+    expect(reviewResultResponse.body.data.documentChecks).toHaveLength(1);
+    expect(reviewResultResponse.body.data.documentChecks[0].status).toBe('matched');
+    expect(reviewResultResponse.body.data.legalBasis).toContain('Nghi dinh 01/2021/ND-CP');
     expect(submitResponse.status).toBe(200);
     expect(submitResponse.body.data.status).toBe('submitted');
     expect(submitResponse.body.data.finalSubmission.confirmationNumber).toBeTruthy();
@@ -349,10 +518,75 @@ describe.sequential('gateway api', () => {
     const submissionResponse = await agent.get(`/api/v1/submissions/${submissionId}`);
 
     expect(reviewLatestResponse.body.data.canRetry).toBe(true);
-    expect(reviewLatestResponse.body.data.errorMessage).toBe(
-      'FastAPI AI review service is unavailable.',
-    );
+    expect(reviewLatestResponse.body.data.errorMessage).toContain('FastAPI');
     expect(submissionResponse.body.data.status).toBe('documents_pending');
+  }, 15000);
+
+  it('marks stale processing reviews as failed instead of leaving the processing page hanging forever', async () => {
+    const agent = await loginAsDemoUser();
+    const submissionId = await createCompletedSubmission(agent);
+    const currentUser = await UserModel.findOne({ email: 'nguyenvana@gmail.com' });
+
+    expect(currentUser).toBeTruthy();
+
+    const review = await ReviewModel.create({
+      submissionId,
+      userId: currentUser!._id,
+      status: 'processing',
+      provider: 'fastapi-ai',
+      timeline: [],
+      etaSeconds: 60,
+      result: null,
+      startedAt: new Date(Date.now() - 120_000),
+      errorMessage: null,
+      providerMetadata: null,
+    });
+
+    await SubmissionModel.findByIdAndUpdate(submissionId, {
+      status: 'processing',
+      currentStep: 5,
+      latestReviewId: review._id,
+    });
+
+    const response = await agent.get(`/api/v1/submissions/${submissionId}/reviews/latest`);
+    const refreshedSubmission = await SubmissionModel.findById(submissionId).lean();
+    const refreshedReview = await ReviewModel.findById(review._id).lean();
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.status).toBe('failed');
+    expect(response.body.data.canRetry).toBe(true);
+    expect(response.body.data.errorMessage).toBeTruthy();
+    expect(refreshedReview?.status).toBe('failed');
+    expect(refreshedSubmission?.status).toBe('documents_pending');
+  });
+
+  it('keeps background review completion stable while the processing page polls repeatedly', async () => {
+    mockSlowSuccessfulReviewAnalysis();
+
+    const agent = await loginAsDemoUser();
+    const submissionId = await createCompletedSubmission(agent);
+    await uploadRequiredDocuments(agent, submissionId);
+
+    const reviewCreateResponse = await agent.post(`/api/v1/submissions/${submissionId}/reviews`);
+    expect(reviewCreateResponse.status).toBe(201);
+
+    await Promise.all(
+      Array.from({ length: 12 }, () =>
+        agent.get(`/api/v1/submissions/${submissionId}/reviews/latest`),
+      ),
+    );
+
+    const reviewLatestResponse = await waitForReviewState(agent, submissionId, 'completed');
+    const reviewResultResponse = await agent.get(
+      `/api/v1/submissions/${submissionId}/reviews/latest/result`,
+    );
+    const persistedReview = await ReviewModel.findById(reviewCreateResponse.body.data.id).lean();
+
+    expect(reviewLatestResponse.status).toBe(200);
+    expect(reviewLatestResponse.body.data.status).toBe('completed');
+    expect(reviewResultResponse.status).toBe(200);
+    expect(persistedReview?.status).toBe('completed');
+    expect(persistedReview?.errorMessage).toBeNull();
   }, 15000);
 
   it('returns assistant session and proxies replies through FastAPI assistant endpoint', async () => {
@@ -371,9 +605,123 @@ describe.sequential('gateway api', () => {
 
     expect(sessionResponse.status).toBe(200);
     expect(sessionResponse.body.data.messages.length).toBeGreaterThan(0);
+    expect(sessionResponse.body.data.context.documentIssues).toHaveLength(0);
     expect(messageResponse.status).toBe(201);
     expect(messageResponse.body.data.reply.paragraphs[0]).toBe('Assistant reply');
   }, 15000);
+
+  it('serves public legal assistant session, resolves canonical document context, and proxies GraphRAG replies through FastAPI', async () => {
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: buildFastApiHealth(),
+    });
+    const legalAskSpy = vi.spyOn(axios, 'post').mockResolvedValue({
+      data: {
+        provider: 'graph-rag-fastapi',
+        routeType: 'ADVISORY',
+        answer: 'Day la phan hoi phap ly da grounded vao tai lieu dang xem.',
+        citations: ['Luat Doanh nghiep 2020'],
+        confidenceScore: 0.91,
+        validationNotes: 'Grounded against Dang ky thanh lap ho kinh doanh',
+        suggestedPrompts: ['Dieu kien dang ky ho kinh doanh gom nhung gi?'],
+        stats: {
+          topResults: 3,
+          groundedToDocumentContext: true,
+        },
+      },
+    });
+
+    const sessionResponse = await request(app).get('/api/v1/legal-assistant/session');
+    const messageResponse = await request(app)
+      .post('/api/v1/legal-assistant/messages')
+      .send({
+        message: 'Dieu kien dang ky ho kinh doanh gom nhung gi?',
+        history: [
+          {
+            role: 'user',
+            paragraphs: ['Toi dang tim hieu thu tuc.'],
+          },
+        ],
+        context: {
+          documentTitle: 'Tai lieu query context se bi gateway resolve lai',
+          documentSlug: 'dang-ky-thanh-lap-ho-kinh-doanh',
+        },
+      });
+
+    expect(sessionResponse.status).toBe(200);
+    expect(sessionResponse.body.data.availability.available).toBe(true);
+    expect(sessionResponse.body.data.welcome.length).toBeGreaterThan(0);
+    expect(messageResponse.status).toBe(201);
+    expect(messageResponse.body.data.reply.routeType).toBe('ADVISORY');
+    expect(messageResponse.body.data.reply.references).toContain('Luat Doanh nghiep 2020');
+    expect(legalAskSpy).toHaveBeenCalledTimes(1);
+    expect(legalAskSpy.mock.calls[0]?.[1]).toMatchObject({
+      question: 'Dieu kien dang ky ho kinh doanh gom nhung gi?',
+      context: {
+        documentSlug: 'dang-ky-thanh-lap-ho-kinh-doanh',
+        documentTitle: 'Đăng ký thành lập hộ kinh doanh',
+        sourceName: 'Cổng Dịch vụ công Quốc gia',
+      },
+    });
+  });
+
+  it('marks the legal assistant unavailable when the knowledge base is not ready', async () => {
+    mockLegalAssistantIntegration({
+      serviceMode: 'graph-rag',
+      neo4jReady: false,
+      chromaReady: false,
+      geminiConfigured: false,
+      legalQaReady: false,
+    });
+
+    const sessionResponse = await request(app).get('/api/v1/legal-assistant/session');
+    const messageResponse = await request(app)
+      .post('/api/v1/legal-assistant/messages')
+      .send({
+        message: 'Tôi có thể đăng ký hộ kinh doanh ở đâu?',
+        history: [],
+      });
+
+    expect(sessionResponse.status).toBe(200);
+    expect(sessionResponse.body.data.availability.available).toBe(false);
+    expect(messageResponse.status).toBe(503);
+    expect(messageResponse.body.error.code).toBe('LEGAL_ASSISTANT_UNAVAILABLE');
+  });
+
+  it('surfaces FastAPI availability failures for legal assistant requests', async () => {
+    vi.spyOn(axios, 'get').mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    const sessionResponse = await request(app).get('/api/v1/legal-assistant/session');
+    const messageResponse = await request(app)
+      .post('/api/v1/legal-assistant/messages')
+      .send({
+        message: 'Cho tôi biết điều kiện mở hộ kinh doanh.',
+        history: [],
+      });
+
+    expect(sessionResponse.status).toBe(200);
+    expect(sessionResponse.body.data.availability.available).toBe(false);
+    expect(messageResponse.status).toBe(502);
+    expect(messageResponse.body.error.code).toBe('FASTAPI_AI_UNAVAILABLE');
+  });
+
+  it('returns a timeout-specific error when the legal assistant exceeds the gateway timeout', async () => {
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: buildFastApiHealth(),
+    });
+    vi.spyOn(axios, 'post').mockRejectedValue(
+      new AxiosError('timeout of 5000ms exceeded', 'ECONNABORTED'),
+    );
+
+    const messageResponse = await request(app)
+      .post('/api/v1/legal-assistant/messages')
+      .send({
+        message: 'Dieu kien dang ky ho kinh doanh gom nhung gi?',
+        history: [],
+      });
+
+    expect(messageResponse.status).toBe(504);
+    expect(messageResponse.body.error.code).toBe('FASTAPI_AI_TIMEOUT');
+  });
 
   it('serves library data publicly and personalizes related resources when authenticated', async () => {
     const publicDocumentsResponse = await request(app)
@@ -398,6 +746,18 @@ describe.sequential('gateway api', () => {
     expect(publicRelatedResponse.status).toBe(200);
     expect(personalizedRelatedResponse.status).toBe(200);
     expect(subscriptionResponse.status).toBe(201);
+  });
+
+  it('serves official library document detail with roadmap and source links', async () => {
+    const detailResponse = await request(app).get(
+      '/api/v1/library/documents/dang-ky-thanh-lap-ho-kinh-doanh',
+    );
+
+    expect(detailResponse.status).toBe(200);
+    expect(detailResponse.body.data.slug).toBe('dang-ky-thanh-lap-ho-kinh-doanh');
+    expect(detailResponse.body.data.sourceUrl).toContain('dichvucong.gov.vn');
+    expect(detailResponse.body.data.roadmap.length).toBeGreaterThan(0);
+    expect(detailResponse.body.data.officialLinks.length).toBeGreaterThan(0);
   });
 
   it('preserves ownership checks on submissions after auth migration', async () => {

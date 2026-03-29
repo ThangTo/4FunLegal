@@ -296,7 +296,20 @@ export const DocumentsPage = () => {
                               </span>
                               {file.statusLabel}
                             </div>
+                            {file.semanticStatusLabel ? (
+                              <>
+                                <span className="h-1 w-1 rounded-full bg-border-strong/50" />
+                                <span className="text-sm font-medium text-brand-deep">
+                                  {file.semanticStatusLabel}
+                                </span>
+                              </>
+                            ) : null}
                           </div>
+                          {file.semanticIssues?.length ? (
+                            <p className="mt-2 text-xs text-state-warning">
+                              {file.semanticIssues.length} vấn đề semantic cần rà soát sau lần phân tích gần nhất.
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="grid gap-3 md:min-w-[280px]">

@@ -28,6 +28,17 @@ export interface ISubmissionFileDocument extends Document {
   ocrSummary?: string | null;
   ocrError?: string | null;
   ocrCompletedAt?: Date | null;
+  extractedFields?: Record<string, unknown> | null;
+  extractionConfidence?: 'low' | 'medium' | 'high' | null;
+  semanticStatus?:
+    | 'pending'
+    | 'checklist_only'
+    | 'matched'
+    | 'mismatch'
+    | 'insufficient_evidence'
+    | 'possible_type_mismatch'
+    | null;
+  semanticIssues?: Array<Record<string, unknown>>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,6 +85,25 @@ const submissionFileSchema = new Schema<ISubmissionFileDocument>(
     ocrSummary: { type: String, default: null },
     ocrError: { type: String, default: null },
     ocrCompletedAt: { type: Date, default: null },
+    extractedFields: { type: Schema.Types.Mixed, default: null },
+    extractionConfidence: {
+      type: String,
+      enum: ['low', 'medium', 'high'],
+      default: null,
+    },
+    semanticStatus: {
+      type: String,
+      enum: [
+        'pending',
+        'checklist_only',
+        'matched',
+        'mismatch',
+        'insufficient_evidence',
+        'possible_type_mismatch',
+      ],
+      default: 'pending',
+    },
+    semanticIssues: { type: [Object], default: [] },
   },
   { timestamps: true },
 );

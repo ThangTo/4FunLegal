@@ -57,6 +57,21 @@ export const assistantService = {
         format: document.format,
         type: document.fileKind,
         documentType: document.documentType,
+        semanticStatus: document.semanticStatus ?? 'pending',
+        semanticStatusLabel:
+          document.semanticStatus === 'matched'
+            ? 'Khớp với kê khai'
+            : document.semanticStatus === 'mismatch'
+              ? 'Lệch thông tin'
+              : document.semanticStatus === 'insufficient_evidence'
+                ? 'Không đủ bằng chứng'
+                : document.semanticStatus === 'possible_type_mismatch'
+                  ? 'Có thể sai loại tài liệu'
+                  : document.semanticStatus === 'checklist_only'
+                    ? 'Kiểm tra checklist'
+                    : null,
+        extractionConfidence: document.extractionConfidence ?? null,
+        semanticIssues: document.semanticIssues ?? [],
       })),
       (result.findings as Array<{ id: string; title: string }>) ?? [],
     );
@@ -122,12 +137,21 @@ export const assistantService = {
         id: document.id,
         label: document.label,
         documentType: document.documentType,
+        originalName: document.originalName,
         ocrSummary: document.ocrSummary ?? null,
+        ocrText: document.ocrText ?? null,
+        extractedFields: (document.extractedFields as Record<string, unknown> | null) ?? null,
+        extractionConfidence: document.extractionConfidence ?? null,
+        semanticStatus: document.semanticStatus ?? null,
+        semanticIssues: (document.semanticIssues as Array<Record<string, unknown>>) ?? [],
       })),
       reviewResult: {
         findings: (result.findings as Array<Record<string, unknown>>) ?? [],
         missingDocuments: (result.missingDocuments as Array<Record<string, unknown>>) ?? [],
+        documentChecks: (result.documentChecks as Array<Record<string, unknown>>) ?? [],
+        fieldComparisons: (result.fieldComparisons as Array<Record<string, unknown>>) ?? [],
         references: result.references ?? [],
+        legalBasis: (result.legalBasis as string[]) ?? [],
       },
       threadMessages: thread.messages
         .slice(-8)
@@ -174,6 +198,21 @@ export const assistantService = {
           format: document.format,
           type: document.fileKind,
           documentType: document.documentType,
+          semanticStatus: document.semanticStatus ?? 'pending',
+          semanticStatusLabel:
+            document.semanticStatus === 'matched'
+              ? 'Khớp với kê khai'
+              : document.semanticStatus === 'mismatch'
+                ? 'Lệch thông tin'
+                : document.semanticStatus === 'insufficient_evidence'
+                  ? 'Không đủ bằng chứng'
+                  : document.semanticStatus === 'possible_type_mismatch'
+                    ? 'Có thể sai loại tài liệu'
+                    : document.semanticStatus === 'checklist_only'
+                      ? 'Kiểm tra checklist'
+                      : null,
+          extractionConfidence: document.extractionConfidence ?? null,
+          semanticIssues: document.semanticIssues ?? [],
         })),
         (result.findings as Array<{ id: string; title: string }>) ?? [],
       ).context,

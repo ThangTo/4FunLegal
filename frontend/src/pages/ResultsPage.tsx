@@ -17,6 +17,17 @@ const buildResumePath = (
     ? withSubmissionId(`/register?step=${step ?? 1}`, submissionId)
     : withSubmissionId(route, submissionId);
 
+const semanticStatusLabelMap: Record<
+  ReviewResultResponse['documentChecks'][number]['status'],
+  string
+> = {
+  checklist_only: 'Kiểm tra checklist',
+  matched: 'Khớp',
+  mismatch: 'Lệch thông tin',
+  insufficient_evidence: 'Không đủ bằng chứng',
+  possible_type_mismatch: 'Có thể sai loại tài liệu',
+};
+
 export const ResultsPage = () => {
   const { submissionId, isResolving } = useResolvedSubmissionId('/results');
   const { navigateWithSubmission } = useSubmissionQuery();
@@ -61,7 +72,9 @@ export const ResultsPage = () => {
 
         if (!cancelled) {
           setResult(null);
-          setErrorMessage(error instanceof Error ? error.message : 'Không thể tải kết quả phân tích.');
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Không thể tải kết quả phân tích.',
+          );
         }
       } finally {
         if (!cancelled) {
@@ -133,7 +146,8 @@ export const ResultsPage = () => {
               Kết quả kiểm tra hồ sơ
             </h1>
             <p className="mt-3 max-w-3xl text-lg leading-relaxed text-text-muted">
-              Đây là kết quả mới nhất được đồng bộ từ dịch vụ phân tích AI.
+              Đây là kết quả mới nhất được đồng bộ từ dịch vụ phân tích AI, bao gồm đối
+              chiếu theo từng file và từng trường dữ liệu.
             </p>
           </header>
 
@@ -154,7 +168,8 @@ export const ResultsPage = () => {
                   </p>
                   {isSubmitted && result.finalSubmission ? (
                     <p className="mt-4 text-sm font-semibold text-brand-secondary">
-                      Hồ sơ đã được nộp chính thức với mã biên nhận {result.finalSubmission.confirmationNumber}
+                      Hồ sơ đã được nộp chính thức với mã biên nhận{' '}
+                      {result.finalSubmission.confirmationNumber}
                     </p>
                   ) : null}
                 </div>
@@ -239,10 +254,37 @@ export const ResultsPage = () => {
 
                           <div>
                             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
-                              Giá trị hiện tại
+                              Giá trị đọc được
                             </p>
                             <p className="font-semibold text-text-base">{finding.extractedValue}</p>
                           </div>
+
+                          {finding.submittedValue ? (
+                            <div className="md:col-span-2 rounded-xl bg-surface-subtle p-4">
+                              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                                Giá trị kê khai
+                              </p>
+                              <p className="font-medium text-brand-deep">{finding.submittedValue}</p>
+                            </div>
+                          ) : null}
+
+                          {finding.sourceDocuments.length > 0 ? (
+                            <div className="md:col-span-2">
+                              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                                File liên quan
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {finding.sourceDocuments.map((document) => (
+                                  <span
+                                    key={`${finding.id}-${document.documentId}`}
+                                    className="rounded-full bg-surface-card px-3 py-2 text-xs font-semibold text-brand-deep"
+                                  >
+                                    {document.documentLabel}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
 
                           <div className="md:col-span-2">
                             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -250,6 +292,48 @@ export const ResultsPage = () => {
                             </p>
                             <p className="leading-relaxed text-text-base">{finding.rejectionReason}</p>
                           </div>
+
+                          {finding.comparisons.length > 0 ? (
+                            <div className="md:col-span-2 rounded-xl border border-border-base/50 bg-surface-card p-4">
+                              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                                Đối chiếu evidence
+                              </p>
+                              <div className="space-y-3">
+                                {finding.comparisons.map((comparison) => (
+                                  <div
+                                    key={comparison.id}
+                                    className="rounded-lg bg-surface-subtle px-4 py-3"
+                                  >
+                                    <div className="flex flex-col gap-1 text-sm">
+                                      <span className="font-semibold text-brand-deep">
+                                        {comparison.fieldLabel}
+                                      </span>
+                                      <span className="text-text-muted">
+                                        Kê khai: {comparison.submittedValue || '—'}
+                                      </span>
+                                      <span className="text-text-muted">
+                                        Tài liệu: {comparison.extractedValue || '—'}
+                                      </span>
+                                      <span className="text-xs text-brand-primary">
+                                        {comparison.reason}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {finding.legalBasis.length > 0 ? (
+                            <div className="md:col-span-2 rounded-xl bg-brand-primary/5 p-4">
+                              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                                Căn cứ pháp lý
+                              </p>
+                              <p className="font-medium text-brand-secondary">
+                                {finding.legalBasis.join(', ')}
+                              </p>
+                            </div>
+                          ) : null}
 
                           <div className="md:col-span-2 rounded-xl bg-surface-subtle p-4">
                             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -265,6 +349,80 @@ export const ResultsPage = () => {
                       Không phát hiện vấn đề nào trong lần phân tích mới nhất.
                     </div>
                   )}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-6 text-2xl font-bold text-brand-deep">Đối chiếu tài liệu</h3>
+                <div className="space-y-4">
+                  {result.documentChecks.map((check) => (
+                    <article
+                      key={check.documentId}
+                      className="card-base rounded-panel border border-border-base/50 p-6 shadow-panel"
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <h4 className="text-lg font-bold text-brand-deep">{check.documentLabel}</h4>
+                          <p className="mt-1 text-sm text-text-muted">{check.originalName}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <StatusBadge
+                            tone={
+                              check.status === 'matched'
+                                ? 'success'
+                                : check.status === 'checklist_only'
+                                  ? 'info'
+                                  : 'warning'
+                            }
+                          >
+                            {semanticStatusLabelMap[check.status]}
+                          </StatusBadge>
+                          {check.extractionConfidence ? (
+                            <StatusBadge tone="info">
+                              OCR {check.extractionConfidence}
+                            </StatusBadge>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <p className="mt-4 text-sm leading-relaxed text-text-muted">{check.summary}</p>
+
+                      {Object.keys(check.extractedFields).length > 0 ? (
+                        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                          {Object.entries(check.extractedFields).map(([key, value]) => (
+                            <div key={`${check.documentId}-${key}`} className="rounded-xl bg-surface-subtle p-4">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                                {key}
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-brand-deep">
+                                {String(value) || '—'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {check.issues.length > 0 ? (
+                        <div className="mt-5 space-y-3">
+                          {check.issues.map((issue) => (
+                            <div
+                              key={String(issue.id)}
+                              className="rounded-xl border border-state-warning/20 bg-state-warning/10 p-4 text-sm text-text-base"
+                            >
+                              <p className="font-semibold text-brand-deep">{String(issue.title)}</p>
+                              <p className="mt-1 text-text-muted">
+                                {String(issue.rejectionReason || '')}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-5 rounded-xl bg-surface-card p-4 text-sm text-text-muted">
+                          Tài liệu này đã khớp với dữ liệu kê khai trong lần phân tích hiện tại.
+                        </div>
+                      )}
+                    </article>
+                  ))}
                 </div>
               </section>
 
@@ -333,6 +491,24 @@ export const ResultsPage = () => {
                     ) : null}
                   </div>
                 </div>
+
+                {result.legalBasis.length > 0 ? (
+                  <div className="rounded-feature border border-border-base/70 bg-surface-card p-6 shadow-panel">
+                    <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-brand-primary/60">
+                      Căn cứ pháp lý chính
+                    </h3>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {result.legalBasis.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full bg-surface-subtle px-3 py-2 text-xs font-semibold text-brand-deep"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="flex flex-col gap-3">
                   {isEligible ? (

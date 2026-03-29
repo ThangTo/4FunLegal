@@ -1,72 +1,117 @@
-# Legal Fact-Checking System for Business Registration
+# AI Agent Workspace
 
-This project is a scaffold for a complex web application that allows users to fill out business registration forms, which are then verified against Vietnamese Enterprise Law using a Multi-Agent system and GraphRAG (Neo4j).
+Repo nay gom 3 package chinh:
 
-## Project Structure
+- `frontend/`: ung dung React + TypeScript + Vite cho giao dien nguoi dung.
+- `node-gateway/`: backend Express + TypeScript + MongoDB, dong vai tro API public duy nhat.
+- `fastapi-ai/`: AI microservice FastAPI phuc vu review ho so, tro ly ho so, va tro ly phap ly.
+
+## Cau truc thu muc
 
 ```text
-d:/Project/AI-agent/
-├── frontend/             # ReactJS (Vite), Tailwind CSS, React Hook Form, Zod
-├── node-gateway/         # Node.js (Express) + MongoDB API Gateway and Auth
-├── fastapi-ai/           # FastAPI (Python), LangChain, Neo4j GraphRAG Service
-└── README.md             # This file
+AI-agent/
+|-- frontend/
+|-- node-gateway/
+|-- fastapi-ai/
+|-- AGENTS.md
+`-- README.md
 ```
 
-## Setup Instructions
+## Luong he thong
 
-### 1. Database Requirements
+- `frontend` goi API qua `node-gateway`.
+- `node-gateway` xu ly auth, submission, document, review, history va legal assistant public.
+- `fastapi-ai` chi nhan request noi bo tu `node-gateway`.
 
-- **MongoDB**: Required for the `node-gateway` to store user accounts and submission logs. Ensure MongoDB is installed and running locally on port 27017, or use a MongoDB Atlas URI.
-- **Neo4j**: Required for the `fastapi-ai` service. You can use Neo4j Desktop or run one via Docker:
-  ```bash
-  docker run \
-      --name neo4j \
-      -p 7474:7474 -p 7687:7687 \
-      -e NEO4J_AUTH=neo4j/password \
-      neo4j:latest
-  ```
+## Chay local nhanh
 
-### 2. Node.js API Gateway (`node-gateway/`)
+Mo 3 terminal rieng:
 
-Open a new terminal:
+### Cach ngan nhat de go
 
-```bash
-cd node-gateway
-npm install
-cp .env.example .env
-npm run dev
+```powershell
+cd d:\Project\AI-agent
+.\ai.cmd
+.\api.cmd
+.\fe.cmd
 ```
 
-The Gateway will start on `http://localhost:3000`.
+Neu muon mo ca 3 service cung luc:
 
-### 3. FastAPI AI Service (`fastapi-ai/`)
-
-Open a new terminal:
-
-```bash
-cd fastapi-ai
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-# source venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn main:app --reload --port 8000
+```powershell
+cd d:\Project\AI-agent
+.\all.cmd
 ```
 
-The AI Service will start on `http://localhost:8000` (Docs available at `http://localhost:8000/docs`).
+### 1. FastAPI AI
 
-### 4. React Frontend (`frontend/`)
-
-Open a new terminal:
-
-```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
+```powershell
+cd d:\Project\AI-agent
+.\ai.cmd
 ```
 
-The Vite development server will start on `http://localhost:5173`.
+Service mac dinh chay tai `http://localhost:8000`.
+
+### 2. Node gateway
+
+```powershell
+cd d:\Project\AI-agent
+.\api.cmd
+```
+
+Service mac dinh chay tai `http://localhost:3000`.
+
+### 3. Frontend
+
+```powershell
+cd d:\Project\AI-agent
+.\fe.cmd
+```
+
+Service mac dinh chay tai `http://localhost:5173`.
+
+## Env local
+
+- `frontend/.env`: tro toi `http://localhost:3000/api/v1`
+- `node-gateway/.env`: auth, MongoDB, Google OAuth, FastAPI internal config
+- `fastapi-ai/.env`: internal API key, AI provider, Neo4j, Gemini
+
+Luu y:
+
+- `node-gateway/.env` va `fastapi-ai/.env` phai dung cung key noi bo:
+  - `FASTAPI_INTERNAL_API_KEY`
+  - `INTERNAL_API_KEY`
+- Google callback local hien tai la:
+  - `http://localhost:3000/api/v1/auth/google/callback`
+
+## Verify
+
+### Frontend
+
+```powershell
+cd d:\Project\AI-agent\frontend
+npx tsc --noEmit
+npm run test
+npm run build
+```
+
+### Node gateway
+
+```powershell
+cd d:\Project\AI-agent\node-gateway
+npm run test
+npm run build
+```
+
+### FastAPI AI
+
+```powershell
+cd d:\Project\AI-agent\fastapi-ai
+.\venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+## Tai lieu tung package
+
+- [Frontend README](./frontend/README.md)
+- [Node Gateway README](./node-gateway/README.md)
+- [FastAPI AI README](./fastapi-ai/README.md)

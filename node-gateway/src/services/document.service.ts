@@ -58,6 +58,23 @@ const buildStatusLabel = (file: ISubmissionFileDocument) => {
   return 'OCR hoàn tất';
 };
 
+const buildSemanticStatusLabel = (file: ISubmissionFileDocument) => {
+  switch (file.semanticStatus) {
+    case 'matched':
+      return 'Khớp với kê khai';
+    case 'mismatch':
+      return 'Lệch thông tin';
+    case 'insufficient_evidence':
+      return 'Không đủ bằng chứng';
+    case 'possible_type_mismatch':
+      return 'Có thể sai loại tài liệu';
+    case 'checklist_only':
+      return 'Kiểm tra checklist';
+    default:
+      return null;
+  }
+};
+
 const buildUploadedFilePayload = (file: ISubmissionFileDocument) => {
   const documentType = normalizeDocumentType(file.documentType);
 
@@ -73,6 +90,10 @@ const buildUploadedFilePayload = (file: ISubmissionFileDocument) => {
     icon: file.fileKind === 'doc' ? getDocumentIcon(documentType) : undefined,
     status: file.validationStatus === 'verified' ? 'verified' : 'processing',
     statusLabel: buildStatusLabel(file),
+    semanticStatus: file.semanticStatus ?? 'pending',
+    semanticStatusLabel: buildSemanticStatusLabel(file),
+    extractionConfidence: file.extractionConfidence ?? null,
+    semanticIssues: file.semanticIssues ?? [],
   };
 };
 
@@ -189,6 +210,10 @@ export const documentService = {
           ocrSummary: null,
           ocrError: null,
           ocrCompletedAt: null,
+          extractedFields: null,
+          extractionConfidence: null,
+          semanticStatus: 'pending',
+          semanticIssues: [],
         });
       }),
     );
@@ -229,6 +254,8 @@ export const documentService = {
 
     document.documentType = normalizedType;
     document.label = inferDocumentLabel(normalizedType);
+    document.semanticStatus = 'pending';
+    document.semanticIssues = [];
     await document.save();
 
     if (shouldInvalidateReview(submission)) {

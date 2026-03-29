@@ -15,6 +15,7 @@ type AnalyzeDocumentPayload = {
   fileKind: 'image' | 'doc';
   contentBase64: string;
   existingOcrText?: string | null;
+  existingExtractedFields?: Record<string, unknown> | null;
 };
 
 type AnalyzeSubmissionPayload = {
@@ -33,6 +34,15 @@ type AnalyzeSubmissionResponse = {
     validationStatus: 'uploaded' | 'verified';
     ocrText?: string | null;
     ocrSummary?: string | null;
+    extractedFields?: Record<string, unknown>;
+    extractionConfidence?: 'low' | 'medium' | 'high' | null;
+    semanticStatus?:
+      | 'checklist_only'
+      | 'matched'
+      | 'mismatch'
+      | 'insufficient_evidence'
+      | 'possible_type_mismatch';
+    semanticIssues?: Array<Record<string, unknown>>;
   }>;
   review: {
     statusBanner: Record<string, unknown>;
@@ -41,6 +51,9 @@ type AnalyzeSubmissionResponse = {
     missingDocuments: Array<Record<string, unknown>>;
     nextActions: Array<Record<string, unknown>>;
     references: string[];
+    documentChecks?: Array<Record<string, unknown>>;
+    fieldComparisons?: Array<Record<string, unknown>>;
+    legalBasis?: string[];
   };
 };
 
@@ -53,12 +66,21 @@ type AssistantReplyPayload = {
     id: string;
     label: string;
     documentType: SubmissionDocumentType;
+    originalName?: string | null;
     ocrSummary?: string | null;
+    ocrText?: string | null;
+    extractedFields?: Record<string, unknown> | null;
+    extractionConfidence?: string | null;
+    semanticStatus?: string | null;
+    semanticIssues?: Array<Record<string, unknown>>;
   }>;
   reviewResult: {
     findings: Array<Record<string, unknown>>;
     missingDocuments: Array<Record<string, unknown>>;
+    documentChecks: Array<Record<string, unknown>>;
+    fieldComparisons: Array<Record<string, unknown>>;
     references: string[];
+    legalBasis: string[];
   };
   threadMessages: Array<{
     role: string;
@@ -75,8 +97,49 @@ type AssistantReplyResponse = {
   suggestedPrompts?: string[];
 };
 
+type FastApiHealthResponse = {
+  status: string;
+  service: string;
+  version: string;
+  serviceMode: string;
+  neo4jReady: boolean;
+  chromaReady: boolean;
+  geminiConfigured: boolean;
+  legalQaReady: boolean;
+};
+
+type LegalQuestionPayload = {
+  question: string;
+  history?: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+  }>;
+  context?: {
+    documentTitle?: string;
+    documentSummary?: string;
+    documentSlug?: string;
+    sourceName?: string;
+    sourceUrl?: string;
+    documentNumber?: string;
+    highlights?: string[];
+    roadmap?: Array<Record<string, unknown>>;
+    officialLinks?: Array<Record<string, unknown>>;
+  } | null;
+};
+
+type LegalQuestionResponse = {
+  provider: string;
+  routeType: 'LOOKUP' | 'ADVISORY' | 'INVALID';
+  answer: string;
+  citations: string[];
+  confidenceScore: number;
+  validationNotes: string;
+  suggestedPrompts?: string[];
+  stats?: Record<string, unknown>;
+};
+
 const DEFAULT_FASTAPI_BASE_URL = 'http://localhost:8000';
-const DEFAULT_FASTAPI_TIMEOUT_MS = 20_000;
+const DEFAULT_FASTAPI_TIMEOUT_MS = 60_000;
 const DEFAULT_FASTAPI_INTERNAL_KEY = 'dev-fastapi-internal-key';
 
 const getFastApiBaseUrl = () =>
@@ -107,6 +170,14 @@ const toIntegrationError = (error: unknown, fallbackMessage: string): AppError =
       typedError.response?.data?.message ||
       typedError.message;
 
+    if (typedError.code === 'ECONNABORTED' || /timeout/i.test(detail || '')) {
+      return new AppError(
+        'Dịch vụ AI đang xử lý chậm hơn thời gian chờ hiện tại. Vui lòng thử lại sau ít giây.',
+        504,
+        'FASTAPI_AI_TIMEOUT',
+      );
+    }
+
     return new AppError(
       detail || fallbackMessage,
       502,
@@ -115,6 +186,36 @@ const toIntegrationError = (error: unknown, fallbackMessage: string): AppError =
   }
 
   return new AppError(fallbackMessage, 502, 'FASTAPI_AI_UNAVAILABLE');
+};
+
+const toLegalAssistantIntegrationError = (
+  error: unknown,
+  fallbackMessage: string,
+): AppError => {
+  if (error instanceof AppError) {
+    return error;
+  }
+
+  if (axios.isAxiosError(error)) {
+    const typedError = error as AxiosError<{
+      detail?: string;
+      message?: string;
+    }>;
+    const detail =
+      typedError.response?.data?.detail ||
+      typedError.response?.data?.message ||
+      typedError.message;
+
+    if (typedError.response?.status === 503) {
+      return new AppError(
+        detail || fallbackMessage,
+        503,
+        'LEGAL_ASSISTANT_UNAVAILABLE',
+      );
+    }
+  }
+
+  return toIntegrationError(error, fallbackMessage);
 };
 
 const readDocumentContent = async (document: ISubmissionFileDocument) => {
@@ -137,6 +238,7 @@ const buildDocumentPayload = async (
   fileKind: document.fileKind,
   contentBase64: await readDocumentContent(document),
   existingOcrText: document.ocrText ?? null,
+  existingExtractedFields: document.extractedFields ?? null,
 });
 
 export const aiService = {
@@ -157,7 +259,7 @@ export const aiService = {
 
       return response.data;
     } catch (error) {
-      throw toIntegrationError(error, 'FastAPI AI review service is unavailable.');
+      throw toIntegrationError(error, 'Dịch vụ phân tích FastAPI AI hiện không phản hồi.');
     }
   },
 
@@ -178,7 +280,46 @@ export const aiService = {
 
       return response.data;
     } catch (error) {
-      throw toIntegrationError(error, 'FastAPI AI assistant service is unavailable.');
+      throw toIntegrationError(error, 'Dịch vụ trợ lý hồ sơ FastAPI AI hiện không phản hồi.');
+    }
+  },
+
+  async getHealth() {
+    try {
+      const response = await axios.get<FastApiHealthResponse>(
+        `${getFastApiBaseUrl()}/health`,
+        {
+          timeout: getFastApiTimeout(),
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      throw toIntegrationError(error, 'Dịch vụ health FastAPI AI hiện không phản hồi.');
+    }
+  },
+
+  async askLegalQuestion(
+    payload: LegalQuestionPayload,
+  ): Promise<LegalQuestionResponse> {
+    try {
+      const response = await axios.post<LegalQuestionResponse>(
+        `${getFastApiBaseUrl()}/internal/v1/legal/ask`,
+        payload,
+        {
+          headers: {
+            'x-internal-api-key': getInternalApiKey(),
+          },
+          timeout: getFastApiTimeout(),
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      throw toLegalAssistantIntegrationError(
+        error,
+        'Dịch vụ trợ lý pháp lý FastAPI hiện không phản hồi.',
+      );
     }
   },
 

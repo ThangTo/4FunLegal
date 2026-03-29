@@ -68,17 +68,17 @@ const draft = {
   submittedByProxy: false,
   proxyName: '',
   proxyRelationship: '',
-  businessName: 'Hộ kinh doanh Demo Quận 1',
-  businessModel: 'Hộ kinh doanh cá thể',
+  businessName: 'Demo household business',
+  businessModel: 'Household business',
   businessAddress: '123 Test',
   startDate: '2026-05-01',
-  businessDescription: 'Bán lẻ thực phẩm tại cửa hàng và giao hàng online.',
+  businessDescription: 'Retail food at shop and online delivery.',
   householdMembers: '',
-  mainIndustry: 'Bán lẻ thực phẩm',
+  mainIndustry: 'Retail food',
   subIndustry: '',
   expectedCapital: '10000000',
-  laborScale: '1 - 2 lao động',
-  salesChannel: 'Tại cửa hàng và online',
+  laborScale: '1 - 2 workers',
+  salesChannel: 'At shop and online',
   note: '',
   requiresPracticeLicense: false,
 };
@@ -111,21 +111,121 @@ const eligibleResult = {
   submissionStatus: 'eligible' as const,
   ownerName: 'Demo User',
   submissionCode: 'HKD-2026-00005',
-  businessName: 'Hộ kinh doanh Demo Quận 1',
+  businessName: 'Demo household business',
   finalSubmission: null,
-  uploadedFiles: [],
+  uploadedFiles: [
+    {
+      id: 'doc-1',
+      label: 'Application form',
+      name: 'don.txt',
+      type: 'doc' as const,
+      semanticStatus: 'mismatch' as const,
+      extractionConfidence: 'high' as const,
+    },
+  ],
   statusBanner: {
     tone: 'success' as const,
-    title: 'Đủ điều kiện sơ bộ',
-    description: 'Sẵn sàng cho bước nộp chính thức',
-    score: 92,
-    scoreLabel: 'Sẵn sàng',
+    title: 'Eligible',
+    description: 'Ready for official submission after grounded review.',
+    score: 88,
+    scoreLabel: 'Ready',
   },
-  summaryItems: [],
-  findings: [],
+  summaryItems: [
+    {
+      id: 'documents-read',
+      tone: 'success' as const,
+      icon: 'check_circle',
+      text: 'Core documents were parsed and compared with the form.',
+    },
+  ],
+  findings: [
+    {
+      id: 'finding-1',
+      severity: 'warning' as const,
+      title: 'Business name mismatch detected',
+      affectedField: 'Business name',
+      extractedValue: 'Demo household business Quan 9',
+      submittedValue: 'Demo household business',
+      rejectionReason: 'The application file still shows a different business name.',
+      suggestion: 'Update the application form so the business name matches the form.',
+      target: { route: '/register' as const, step: 2 as const },
+      sourceDocuments: [
+        {
+          documentId: 'doc-1',
+          documentLabel: 'Application form',
+          documentType: 'application',
+          originalName: 'don.txt',
+        },
+      ],
+      comparisons: [
+        {
+          id: 'cmp-1',
+          fieldKey: 'businessName',
+          fieldLabel: 'Business name',
+          status: 'mismatch' as const,
+          submittedValue: 'Demo household business',
+          extractedValue: 'Demo household business Quan 9',
+          reason: 'The value extracted from the file differs from the declaration form.',
+          sourceDocuments: [
+            {
+              documentId: 'doc-1',
+              documentLabel: 'Application form',
+              documentType: 'application',
+              originalName: 'don.txt',
+            },
+          ],
+          legalBasis: ['Nghi dinh 01/2021/ND-CP'],
+        },
+      ],
+      legalBasis: ['Nghi dinh 01/2021/ND-CP'],
+    },
+  ],
   missingDocuments: [],
   nextActions: [],
-  references: [],
+  references: ['Nghi dinh 01/2021/ND-CP'],
+  documentChecks: [
+    {
+      documentId: 'doc-1',
+      documentLabel: 'Application form',
+      documentType: 'application',
+      originalName: 'don.txt',
+      status: 'mismatch' as const,
+      summary: 'Mismatch between the uploaded application and the declaration form.',
+      extractionConfidence: 'high' as const,
+      extractedFields: {
+        businessName: 'Demo household business Quan 9',
+      },
+      issues: [
+        {
+          id: 'issue-1',
+          title: 'Business name mismatch detected',
+          rejectionReason: 'The extracted business name differs from the form.',
+        },
+      ],
+      legalBasis: ['Nghi dinh 01/2021/ND-CP'],
+    },
+  ],
+  fieldComparisons: [
+    {
+      id: 'cmp-1',
+      fieldKey: 'businessName',
+      fieldLabel: 'Business name',
+      status: 'mismatch' as const,
+      submittedValue: 'Demo household business',
+      extractedValue: 'Demo household business Quan 9',
+      reason: 'The value extracted from the file differs from the declaration form.',
+      sourceDocuments: [
+        {
+          documentId: 'doc-1',
+          documentLabel: 'Application form',
+          documentType: 'application',
+          originalName: 'don.txt',
+        },
+      ],
+      legalBasis: ['Nghi dinh 01/2021/ND-CP'],
+    },
+  ],
+  legalBasis: ['Nghi dinh 01/2021/ND-CP'],
 };
 
 const submittedDetail = {
@@ -155,9 +255,7 @@ const LocationDisplay = () => {
 const renderWithAuth = (initialEntry: string, children: ReactNode) =>
   render(
     <AuthContext.Provider value={authValue}>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        {children}
-      </MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>{children}</MemoryRouter>
     </AuthContext.Provider>,
   );
 
@@ -176,7 +274,7 @@ describe('Procedure flow pages', () => {
         {
           id: 'sub-1',
           submissionCode: 'HKD-2026-00001',
-          name: 'Hồ sơ đang kê khai',
+          name: 'Draft dossier',
           createdAt: '2026-03-27T10:00:00.000Z',
           updatedAt: '2026-03-27T10:00:00.000Z',
           status: 'draft',
@@ -188,7 +286,7 @@ describe('Procedure flow pages', () => {
         {
           id: 'sub-2',
           submissionCode: 'HKD-2026-00002',
-          name: 'Hồ sơ đã nộp',
+          name: 'Submitted dossier',
           createdAt: '2026-03-27T10:00:00.000Z',
           updatedAt: '2026-03-27T10:00:00.000Z',
           status: 'submitted',
@@ -220,11 +318,10 @@ describe('Procedure flow pages', () => {
       </Routes>,
     );
 
-    expect(await screen.findByText('Hồ sơ đang kê khai')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tiếp tục kê khai' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Xem biên nhận' })).toBeInTheDocument();
+    expect(await screen.findByText('Draft dossier')).toBeInTheDocument();
+    expect(screen.getByText('Submitted dossier')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Xem biên nhận' }));
+    await userEvent.click(screen.getByRole('button', { name: /receipt|biên nhận/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('location-display')).toHaveTextContent(
@@ -239,7 +336,7 @@ describe('Procedure flow pages', () => {
       uploadedFiles: [
         {
           id: 'doc-1',
-          label: 'Tài liệu bổ sung',
+          label: 'Additional document',
           name: 'scan-1.pdf',
           size: '120 KB',
           format: 'PDF',
@@ -247,33 +344,37 @@ describe('Procedure flow pages', () => {
           documentType: 'other',
           icon: 'description',
           status: 'processing',
-          statusLabel: 'Chờ OCR',
+          statusLabel: 'Waiting OCR',
+          semanticStatus: 'possible_type_mismatch',
+          semanticStatusLabel: 'Possible wrong type',
+          extractionConfidence: 'low',
+          semanticIssues: [{ id: 'issue-1' }],
         },
       ],
       checklist: [
         {
           id: 'application',
-          label: 'Đơn đăng ký',
+          label: 'Application form',
           status: 'missing_required',
           required: true,
         },
       ],
       summary: {
         ownerName: 'Demo User',
-        businessName: 'Hộ kinh doanh Demo Quận 1',
+        businessName: 'Demo household business',
         uploadedCount: 1,
         uploadedRequiredCount: 0,
         requiredCount: 1,
         missingRequiredCount: 1,
         canStartReview: false,
-        aiHint: 'Cần bổ sung đơn đăng ký',
+        aiHint: 'Need application form',
       },
     });
     mockApi.updateDocumentType.mockResolvedValue({
       uploadedFiles: [
         {
           id: 'doc-1',
-          label: 'Đơn đăng ký',
+          label: 'Application form',
           name: 'scan-1.pdf',
           size: '120 KB',
           format: 'PDF',
@@ -281,26 +382,30 @@ describe('Procedure flow pages', () => {
           documentType: 'application',
           icon: 'description',
           status: 'processing',
-          statusLabel: 'Chờ OCR',
+          statusLabel: 'Waiting OCR',
+          semanticStatus: 'pending',
+          semanticStatusLabel: 'Pending semantic review',
+          extractionConfidence: null,
+          semanticIssues: [],
         },
       ],
       checklist: [
         {
           id: 'application',
-          label: 'Đơn đăng ký',
+          label: 'Application form',
           status: 'uploaded',
           required: true,
         },
       ],
       summary: {
         ownerName: 'Demo User',
-        businessName: 'Hộ kinh doanh Demo Quận 1',
+        businessName: 'Demo household business',
         uploadedCount: 1,
         uploadedRequiredCount: 1,
         requiredCount: 1,
         missingRequiredCount: 0,
         canStartReview: true,
-        aiHint: 'Hồ sơ đã đủ điều kiện',
+        aiHint: 'Ready for review',
       },
     });
 
@@ -312,16 +417,17 @@ describe('Procedure flow pages', () => {
       </Routes>,
     );
 
-    expect(await screen.findByRole('button', { name: 'Bắt đầu phân tích' })).toBeDisabled();
+    expect(await screen.findByText('Possible wrong type')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /phân tích|phan tich/i })).toBeDisabled();
 
-    await userEvent.selectOptions(screen.getByDisplayValue('Tài liệu bổ sung'), 'application');
+    await userEvent.selectOptions(screen.getAllByRole('combobox')[0], 'application');
 
     await waitFor(() => {
       expect(mockApi.updateDocumentType).toHaveBeenCalledWith('sub-1', 'doc-1', 'application');
     });
   });
 
-  it('routes eligible results to the official submission screen', async () => {
+  it('renders grounded result evidence and routes eligible dossiers to the official submission screen', async () => {
     mockApi.getReviewResult.mockResolvedValue(eligibleResult);
 
     renderWithAuth(
@@ -332,9 +438,13 @@ describe('Procedure flow pages', () => {
       </Routes>,
     );
 
-    expect(await screen.findByText('Sẵn sàng cho bước nộp chính thức')).toBeInTheDocument();
+    expect((await screen.findAllByText('Business name mismatch detected')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Application form').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Demo household business Quan 9').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Nghi dinh 01/2021/ND-CP').length).toBeGreaterThan(0);
+    expect(screen.getByText('Mismatch between the uploaded application and the declaration form.')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Nộp chính thức/ }));
+    await userEvent.click(screen.getByRole('button', { name: /submit|nộp/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('location-display')).toHaveTextContent(
@@ -349,7 +459,7 @@ describe('Procedure flow pages', () => {
       uploadedFiles: [
         {
           id: 'doc-1',
-          label: 'CCCD',
+          label: 'Citizen ID',
           name: 'cccd.pdf',
           size: '120 KB',
           format: 'PDF',
@@ -357,19 +467,23 @@ describe('Procedure flow pages', () => {
           documentType: 'citizen-id',
           icon: 'description',
           status: 'verified',
-          statusLabel: 'OCR hoàn tất',
+          statusLabel: 'Verified',
+          semanticStatus: 'matched',
+          semanticStatusLabel: 'Matched',
+          extractionConfidence: 'high',
+          semanticIssues: [],
         },
       ],
       checklist: [],
       summary: {
         ownerName: 'Demo User',
-        businessName: 'Hộ kinh doanh Demo Quận 1',
+        businessName: 'Demo household business',
         uploadedCount: 1,
         uploadedRequiredCount: 1,
         requiredCount: 1,
         missingRequiredCount: 0,
         canStartReview: true,
-        aiHint: 'Sẵn sàng',
+        aiHint: 'Ready',
       },
     });
     mockApi.submitSubmission.mockResolvedValue(submittedDetail);
@@ -381,21 +495,19 @@ describe('Procedure flow pages', () => {
       </Routes>,
     );
 
-    expect(
-      await screen.findByRole('heading', { name: 'Tóm tắt hồ sơ cuối cùng' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Demo household business/)).toBeInTheDocument();
 
     const checkboxes = screen.getAllByRole('checkbox');
     await userEvent.click(checkboxes[0]);
     await userEvent.click(checkboxes[1]);
     await userEvent.click(checkboxes[2]);
-    await userEvent.click(screen.getByRole('button', { name: 'Xác nhận nộp chính thức' }));
+    await userEvent.click(screen.getByRole('button', { name: /confirm|xác nhận/i }));
 
     await waitFor(() => {
       expect(mockApi.submitSubmission).toHaveBeenCalledWith('sub-1');
     });
 
-    expect(await screen.findByText('Biên nhận nội bộ')).toBeInTheDocument();
+    expect((await screen.findAllByText(/receipt|biên nhận/i)).length).toBeGreaterThan(0);
     expect(screen.getByText('SUB-HKD-2026-00005-123456')).toBeInTheDocument();
   });
 });

@@ -1,12 +1,13 @@
 import { LibraryDocumentModel } from '../models/library.model';
 import { SubmissionModel } from '../models/submission.model';
+import { AppError } from '../utils/app-error';
 
 const categoryMeta = [
   { id: 'procedure', label: 'Hướng dẫn thủ tục' },
-  { id: 'forms', label: 'Mẫu biểu' },
+  { id: 'forms', label: 'Mẫu biểu chính thức' },
   { id: 'terms', label: 'Giải thích thuật ngữ' },
   { id: 'faq', label: 'Câu hỏi thường gặp' },
-  { id: 'industry', label: 'Ngành nghề kinh doanh' },
+  { id: 'industry', label: 'Văn bản pháp lý' },
 ] as const;
 
 export const libraryService = {
@@ -46,6 +47,7 @@ export const libraryService = {
         { title: { $regex: normalizedQuery, $options: 'i' } },
         { summary: { $regex: normalizedQuery, $options: 'i' } },
         { keywords: { $elemMatch: { $regex: normalizedQuery, $options: 'i' } } },
+        { documentNumber: { $regex: normalizedQuery, $options: 'i' } },
       ];
     }
 
@@ -69,25 +71,34 @@ export const libraryService = {
     };
   },
 
+  async getDocumentDetail(slug: string) {
+    const document = await LibraryDocumentModel.findOne({ slug }).lean();
+
+    if (!document) {
+      throw new AppError('Library document not found', 404, 'LIBRARY_DOCUMENT_NOT_FOUND');
+    }
+
+    return document;
+  },
+
   async getRelated(submissionId?: string, userId?: string) {
     const resources = [
       {
         id: 'related-name',
-        title: 'Cách đặt tên doanh nghiệp không bị trùng',
-        description: 'Tránh bị từ chối hồ sơ vì tên gây nhầm lẫn lần đầu.',
+        title: 'Kiểm tra tên hộ kinh doanh trước khi nộp',
+        description: 'Đối chiếu lại cách đặt tên để tránh bị yêu cầu sửa hồ sơ ở vòng đầu.',
         border: 'border-brand-primary',
       },
       {
-        id: 'related-authorization',
-        title: 'Hồ sơ ủy quyền cho người đại diện',
-        description: 'Mẫu văn bản ủy quyền hợp lệ theo quy định hiện hành.',
+        id: 'related-form',
+        title: 'Mẫu giấy đề nghị đăng ký hộ kinh doanh',
+        description: 'Mở nhanh biểu mẫu chính thức để soát lại trường thông tin trước khi tải lên.',
         border: 'border-brand-secondary',
       },
       {
-        id: 'related-industry',
-        title: 'Thủ tục đăng ký con dấu pháp nhân',
-        description:
-          'Sau khi có giấy chứng nhận đăng ký kinh doanh, bạn có thể cần thủ tục bổ sung tùy mô hình.',
+        id: 'related-legal',
+        title: 'Văn bản pháp lý hiện hành cho hộ kinh doanh',
+        description: 'Tập hợp các nguồn chính thức cần đối chiếu khi chuẩn bị hồ sơ hoặc giải trình.',
         border: 'border-state-warning',
       },
     ];
@@ -103,10 +114,10 @@ export const libraryService = {
     }
 
     return resources.map((item) =>
-      item.id === 'related-industry'
+      item.id === 'related-legal'
         ? {
             ...item,
-            description: `Sau khi có giấy chứng nhận đăng ký kinh doanh cho "${submission.business.businessName}".`,
+            description: `Đối chiếu nguồn chính thức đang phù hợp với hồ sơ "${submission.business.businessName}".`,
           }
         : item,
     );

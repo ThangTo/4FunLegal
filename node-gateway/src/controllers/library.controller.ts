@@ -24,6 +24,11 @@ export const libraryController = {
     return sendSuccess(res, documents);
   },
 
+  async getDocumentDetail(req: Request, res: Response) {
+    const document = await libraryService.getDocumentDetail(req.params.slug);
+    return sendSuccess(res, document);
+  },
+
   async getRelated(req: Request, res: Response) {
     const related = await libraryService.getRelated(
       typeof req.query.submissionId === 'string' ? req.query.submissionId : undefined,

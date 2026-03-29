@@ -13,6 +13,19 @@ import time
 import traceback
 
 
+def _configure_console_encoding():
+    """Cố gắng chuyển stdout/stderr sang UTF-8 để tránh lỗi Unicode trên Windows."""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        reconfigure = getattr(stream, "reconfigure", None)
+
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 def run_all(skip_graph: bool = False):
     """Chạy toàn bộ pipeline."""
     start_time = time.time()
@@ -112,6 +125,8 @@ def run_step(step: str):
 
 
 if __name__ == "__main__":
+    _configure_console_encoding()
+
     parser = argparse.ArgumentParser(
         description="Pipeline xây dựng Database từ văn bản luật"
     )

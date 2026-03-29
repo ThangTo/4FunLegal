@@ -6,6 +6,7 @@ import {
 } from './submission-helpers';
 
 type UploadedDocumentInfo = {
+  id?: string;
   label: string;
   originalName?: string;
   name?: string;
@@ -16,6 +17,17 @@ type UploadedDocumentInfo = {
   type?: 'image' | 'doc';
   publicUrl?: string;
   preview?: string;
+  documentType?: SubmissionDocumentType;
+  semanticStatus?:
+    | 'pending'
+    | 'checklist_only'
+    | 'matched'
+    | 'mismatch'
+    | 'insufficient_evidence'
+    | 'possible_type_mismatch';
+  semanticStatusLabel?: string | null;
+  extractionConfidence?: 'low' | 'medium' | 'high' | null;
+  semanticIssues?: Array<Record<string, unknown>>;
 };
 
 const reviewDurationsMs = [0, 1500, 3000, 4500, 6000];
@@ -231,6 +243,8 @@ export const buildReviewResult = (
     summaryItems,
     findings,
     missingDocuments,
+    documentChecks: [],
+    fieldComparisons: [],
     nextActions: hasBlockingIssues
       ? [
           {
@@ -273,6 +287,7 @@ export const buildReviewResult = (
           },
         ],
     references: ['Nghị định 01/2021/NĐ-CP', 'Luật Doanh nghiệp 2020'],
+    legalBasis: ['Nghị định 01/2021/NĐ-CP', 'Luật Doanh nghiệp 2020'],
   };
 };
 
@@ -378,6 +393,20 @@ export const buildAssistantSessionContext = (
       items: findings,
     },
     relatedDocuments: uploadedFiles.slice(0, 3),
+    documentIssues: uploadedFiles
+      .filter((file) =>
+        file.semanticStatus &&
+        ['mismatch', 'insufficient_evidence', 'possible_type_mismatch'].includes(
+          file.semanticStatus,
+        ),
+      )
+      .map((file) => ({
+        id: file.id ?? file.name ?? file.label,
+        title: file.label,
+        semanticStatus: file.semanticStatus!,
+        semanticStatusLabel: file.semanticStatusLabel ?? 'Cần kiểm tra thêm',
+        extractionConfidence: file.extractionConfidence ?? null,
+      })),
     references: ['Nghị định 01/2021/NĐ-CP', 'Luật Doanh nghiệp 2020'],
   },
 });

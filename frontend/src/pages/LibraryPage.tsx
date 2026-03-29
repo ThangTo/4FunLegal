@@ -8,6 +8,16 @@ import { getSubmissionIdFromSearch, withSubmissionId } from '../lib/procedure';
 
 const initialVisibleCount = 3;
 
+const buildSupportPath = (document: LibraryDocument) => {
+  const search = new URLSearchParams();
+  search.set('documentTitle', document.title);
+  search.set('documentSummary', document.summary);
+  search.set('documentSlug', document.slug);
+  return `/support?${search.toString()}`;
+};
+
+const buildDocumentDetailPath = (document: LibraryDocument) => `/library/${document.slug}`;
+
 export const LibraryPage = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -81,7 +91,7 @@ export const LibraryPage = () => {
     try {
       await api.createLibrarySubscription(email.trim());
       setSubscribed(true);
-    } catch (_error) {
+    } catch {
       setSubscribed(false);
     }
   };
@@ -94,8 +104,10 @@ export const LibraryPage = () => {
             <h1 className="text-[2.75rem] font-black tracking-tight text-brand-deep md:text-[3.25rem]">
               Kho tài liệu nghiệp vụ
             </h1>
-            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-text-muted">
-              Nơi cung cấp đầy đủ các hướng dẫn, mẫu biểu và giải đáp thắc mắc về các thủ tục đăng ký kinh doanh tại Việt Nam.
+            <p className="mt-4 max-w-3xl text-lg leading-relaxed text-text-muted">
+              Danh mục văn bản và biểu mẫu được lấy từ nguồn chính thức như Cổng Dịch vụ công
+              Quốc gia và Cổng Thông tin quốc gia về đăng ký doanh nghiệp, để bạn có thể xem chi
+              tiết, theo dõi lộ trình áp dụng và mở bản gốc khi cần tải về.
             </p>
 
             <div className="relative mt-10 w-full max-w-3xl">
@@ -109,7 +121,7 @@ export const LibraryPage = () => {
                   setQuery(event.target.value);
                   setVisibleCount(initialVisibleCount);
                 }}
-                placeholder="Tìm kiếm thủ tục, mẫu đơn, ngành nghề..."
+                placeholder="Tìm kiếm thủ tục, mẫu biểu, số hiệu văn bản..."
                 className="h-[72px] w-full rounded-2xl border border-border-base/60 bg-surface-card pl-14 pr-36 text-base text-text-base shadow-sm outline-none transition placeholder:text-text-muted/70 focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10"
               />
               <div className="absolute inset-y-0 right-3 flex items-center">
@@ -147,7 +159,7 @@ export const LibraryPage = () => {
           {heroDocument ? (
             <section className="mb-16">
               <div className="mb-8 flex items-center justify-between">
-                <h2 className="text-[2rem] font-bold text-brand-deep">Hướng dẫn nổi bật</h2>
+                <h2 className="text-[2rem] font-bold text-brand-deep">Tài liệu nổi bật</h2>
                 <button
                   type="button"
                   onClick={() => setVisibleCount((current) => current + 3)}
@@ -169,7 +181,7 @@ export const LibraryPage = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/80 via-brand-deep/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-8 text-text-inverse">
                     <span className="mb-4 inline-flex rounded-full bg-brand-secondary/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-secondary">
-                      {heroDocument.eyebrow ?? 'Mới nhất'}
+                      {heroDocument.eyebrow ?? 'Nguồn chính thức'}
                     </span>
                     <h3 className="max-w-[520px] text-[2.1rem] font-bold leading-tight">
                       {heroDocument.title}
@@ -179,6 +191,7 @@ export const LibraryPage = () => {
                     </p>
                     <button
                       type="button"
+                      onClick={() => navigate(buildDocumentDetailPath(heroDocument))}
                       className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand-deep transition hover:bg-surface-hero"
                     >
                       Xem lộ trình
@@ -197,7 +210,7 @@ export const LibraryPage = () => {
                       )}
                     >
                       <div>
-                        <div className="mb-4 flex items-center justify-between">
+                        <div className="mb-4 flex items-center justify-between gap-3">
                           <span
                             className={cn(
                               'material-symbols-outlined text-[18px]',
@@ -206,13 +219,13 @@ export const LibraryPage = () => {
                                 : 'text-brand-primary',
                             )}
                           >
-                            {document.category === 'forms' ? 'description' : 'stylus_note'}
+                            {document.category === 'forms' ? 'description' : 'policy'}
                           </span>
                           <span className="text-[11px] font-medium text-text-muted">
-                            Cập nhật: {document.updatedAtLabel}
+                            {document.updatedAtLabel}
                           </span>
                         </div>
-                        <h4 className="text-[1.85rem] font-bold leading-tight text-brand-deep">
+                        <h4 className="text-[1.5rem] font-bold leading-tight text-brand-deep">
                           {document.title}
                         </h4>
                         <p className="mt-3 text-sm leading-relaxed text-text-muted">
@@ -222,6 +235,7 @@ export const LibraryPage = () => {
 
                       <button
                         type="button"
+                        onClick={() => navigate(buildDocumentDetailPath(document))}
                         className={cn(
                           'mt-6 inline-flex items-center gap-2 text-sm font-bold',
                           document.category === 'forms'
@@ -229,7 +243,7 @@ export const LibraryPage = () => {
                             : 'text-brand-secondary',
                         )}
                       >
-                        {document.category === 'forms' ? 'Tải tài liệu' : 'Tìm hiểu ngay'}
+                        {document.category === 'forms' ? 'Xem mẫu & tải về' : 'Xem chi tiết'}
                         <span className="material-symbols-outlined text-[16px]">
                           {document.category === 'forms' ? 'download' : 'chevron_right'}
                         </span>
@@ -256,7 +270,12 @@ export const LibraryPage = () => {
                         {categoryLabel(document.category)}
                       </span>
                       {document.tag ? (
-                        <span className={cn('rounded-md px-3 py-1 text-[11px] font-bold', accentBadgeClass(document.accent))}>
+                        <span
+                          className={cn(
+                            'rounded-md px-3 py-1 text-[11px] font-bold',
+                            accentBadgeClass(document.accent),
+                          )}
+                        >
                           {document.tag}
                         </span>
                       ) : null}
@@ -276,6 +295,7 @@ export const LibraryPage = () => {
                   <div className="mt-8 flex flex-wrap items-center gap-4">
                     <button
                       type="button"
+                      onClick={() => navigate(buildDocumentDetailPath(document))}
                       className="inline-flex items-center gap-2 rounded-xl bg-brand-deep px-6 py-3 text-sm font-bold text-text-inverse shadow-card transition hover:bg-brand-primary"
                     >
                       Xem chi tiết
@@ -283,7 +303,7 @@ export const LibraryPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate(withSubmissionId('/assistant', getSubmissionIdFromSearch(window.location.search)))}
+                      onClick={() => navigate(buildSupportPath(document))}
                       className="inline-flex items-center gap-2 rounded-xl bg-surface-subtle px-6 py-3 text-sm font-bold text-brand-deep transition hover:bg-surface-card-alt"
                     >
                       Hỏi AI về tài liệu này
@@ -334,7 +354,14 @@ export const LibraryPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => navigate(withSubmissionId('/documents', getSubmissionIdFromSearch(window.location.search)))}
+                    onClick={() =>
+                      navigate(
+                        withSubmissionId(
+                          '/documents',
+                          getSubmissionIdFromSearch(window.location.search),
+                        ),
+                      )
+                    }
                     className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-brand-primary/20 bg-transparent px-4 py-3 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/5"
                   >
                     Quay lại hồ sơ nháp
@@ -347,7 +374,8 @@ export const LibraryPage = () => {
                   </span>
                   <h5 className="font-bold">Thông báo thay đổi</h5>
                   <p className="mt-2 text-sm leading-relaxed text-text-inverse/80">
-                    Đăng ký nhận thông báo khi có các quy định mới về thuế và đăng ký kinh doanh.
+                    Đăng ký nhận thông báo khi có biểu mẫu mới, thay đổi thủ tục hoặc văn bản pháp
+                    lý mới trên cổng chính thức.
                   </p>
 
                   <div className="mt-4 flex gap-2">
